@@ -180,8 +180,6 @@ function rdaneel:sweepField( length, width, sweepCallback )
             }
         end
 
-        roundIdx = roundIdx + 1
-
         -- Mark `done` as true in order to get rid of the nested
         -- loop.  Lua does not support goto-style statement until
         -- 5.2.0-beta-rc1
@@ -192,18 +190,32 @@ function rdaneel:sweepField( length, width, sweepCallback )
             assert( type( sweepCallback ) == 'function', 'Callback is required to be a function' )
         end
 
+        local x = roundIdx
+        local y = 0
+
         for direction, nsteps in ipairs( paths ) do
-            local infoTbl = { direction = direction, round = roundIdx, steps = nil, }
+            local infoTbl = {
+                round = roundIdx, direction = direction,
+                steps = nil, x = nil, y = nil,
+            }
             if nsteps == 0 then
                 if sweepCallback then
-                    infoTbl.steps = 0; sweepCallback( infoTbl )
+                    infoTbl.x = x; infoTbl.y = y; infoTbl.steps = 0
+                    sweepCallback( infoTbl )
                 end
                 done = true
                 break
             else
-                for n = 1, nsteps do
+                for n = 0, nsteps - 1 do
                     if sweepCallback then
-                        infoTbl.steps = n; sweepCallback( infoTbl )
+                        if direction == 1 then y = y + 1
+                        elseif direction == 2 then x = x + 1
+                        elseif direction == 3 then y = y - 1
+                        elseif direction == 4 then x = x - 1
+                        end
+
+                        infoTbl.x = x; infoTbl.y = y; infoTbl.steps = n
+                        sweepCallback( infoTbl )
                     end
                     turtle.gofd( true )
                 end
@@ -212,18 +224,26 @@ function rdaneel:sweepField( length, width, sweepCallback )
         end
 
         if done then break end
+        roundIdx = roundIdx + 1
     end
-
     return true
 end
 
-local success, err = rdaneel:sweepField( 11, 9,
+local logFH = fs.open( 'log', 'w' )
+local success, err = rdaneel:sweepField( 10, 10,
     function ( info )
-        print( info.direction, info.round, info.steps )
-        -- local exists, details = turtle.inspectDown()
-        -- if exists then
-        --     print( details )
-        -- end
+        local log = string.format(
+            "Round: %d; Dir: %d; X: %d", info.round, info.direction, info.x )
+
+        logFH.writeLine( log )
+
+        local exists, details = turtle.inspectDown()
+        if exists then
+            logFH.writeLine( details.name )
+        end
+
+        logFH.writeLine( '*' )
+        logFH.flush()
     end
 )
 
