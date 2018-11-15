@@ -1,28 +1,23 @@
-------------------------------------------------------------
---
---  Workaround to Lua's nature that it's not possible to create
---  constants
---
-------------------------------------------------------------
+local rdaneel = {
+    VERSION = '0.1',
+    _constants = {},
+    _pri = {
+        --  Workaround to Lua's nature that it's not possible to create
+        --  constants
+        protect = function ( tbl )
+            return setmetatable( {}, {
+                    __index = tbl,
+                    __newindex = function( t, k, v )
+                        error( "attempting to change constant " 
+                                   .. tostring( k ) .. " to " .. tostring( v ), 2 )
+                    end
+            } )
+        end,
+    }
+}
 
-function __protect( tbl )
-    return setmetatable( {}, {
-            __index = tbl,
-            __newindex = function( t, key, value )
-                error( "attempting to change constant " ..
-                           tostring( key ) .. " to " .. tostring( value ), 2 )
-            end
-    } )
-end
-
-__constants = { slotsNum = 16, }
-__constants = __protect( __constants )
-
-------------------------------------------------------------
---
---  Useful utility functions
---
-------------------------------------------------------------
+rdaneel._constants = { slotsNum = 16, }
+rdaneel._constants = rdaneel._pri.protect( rdaneel._constants )
 
 function turtle:goup( destroy )
     if self and turtle.detectUp() then
@@ -45,10 +40,10 @@ function turtle:gofd( destroy )
     turtle.forward()
 end
 
--- selectItem() selects the inventory slot with the names item,
+-- rdaneel:selectItem() selects the inventory slot with the names item,
 -- returns `true` if found and `false` if not
 
-function selectItem( name )
+function rdaneel:selectItem( name )
     local currentSlot = turtle.getItemDetail( turtle.getSelectedSlot() )
 
     if currentSlot and currentSlot['name'] == name then
@@ -59,7 +54,7 @@ function selectItem( name )
 
     local item = nil
 
-    for slot = 1, __constants.slotsNum do
+    for slot = 1, rdaneel._constants.slotsNum do
         item = turtle.getItemDetail( slot )
         if item and item['name'] == name then
             return turtle.select( slot )
@@ -69,16 +64,16 @@ function selectItem( name )
     return false -- couldn't find item
 end
 
--- selectEmptySlot() selects inventory slot that is empty,
+-- rdaneel:selectEmptySlot() selects inventory slot that is empty,
 -- returns `true` if found, `false` if no empty spaces
 
-function selectEmptySlot()
+function rdaneel:selectEmptySlot()
     if turtle.getItemCount( turtle.getSelectedSlot() ) == 0 then
         return true
     end
 
     -- loop through all slots
-    for slot = 1, __constants.slotsNum do
+    for slot = 1, rdaneel._constants.slotsNum do
         if turtle.getItemSpace( slot ) == 64 then
             turtle.select( slot )
             return true
@@ -88,13 +83,13 @@ function selectEmptySlot()
     return false -- couldn't find empty space
 end
 
--- countInventory() returns the total number of items in the
+-- rdaneel:countInventory() returns the total number of items in the
 -- inventory
 
-function countInventory()
+function rdaneel:countInventory()
     local total = 0
 
-    for slot = 1, __constants.slotsNum do
+    for slot = 1, rdaneel._constants.slotsNum do
         total = total + turtle.getItemCount( slot )
     end
 
@@ -104,8 +99,8 @@ end
 -- selectAndPlaceDown() selects a nonempty slot and places a
 -- block from it under the turtle
 
-function selectAndPlaceDown( destroy )
-    for slot = 1, __constants.slotsNum do
+function rdaneel:selectAndPlaceDown( destroy )
+    for slot = 1, rdaneel._constants.slotsNum do
         if turtle.getItemCount( slot ) > 0 then
 
             turtle.select( slot )
@@ -134,13 +129,13 @@ function selectAndPlaceDown( destroy )
     return false
 end
 
-function sweepField( length, width, sweepCallback )
+function rdaneel:sweepField( length, width, sweepCallback )
 
     local minimum = length * width
 
     if turtle.getFuelLevel() < minimum then
         return false, 'HAVE NO ENOUGH FUEL'
-    elseif countInventory() < minimum then
+    elseif rdaneel:countInventory() < minimum then
         return false, 'HAVE NO ENOUGH BLOCKS'
     end
 
@@ -224,3 +219,14 @@ function sweepField( length, width, sweepCallback )
         if done then break end
     end
 end
+
+local success, err = rdaneel:sweepField( 7, 10,
+    function ()
+        local exists, details = turtle.inspectDown()
+        if exists then
+            print( details )
+        end
+    end
+)
+
+assert( success, err )
