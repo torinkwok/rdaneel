@@ -135,8 +135,8 @@ function rdaneel:sweepField( length, width, sweepCallback )
 
     if turtle.getFuelLevel() < minimum then
         return false, 'HAVE NO ENOUGH FUEL'
-    elseif rdaneel:countInventory() < minimum then
-        return false, 'HAVE NO ENOUGH BLOCKS'
+    -- elseif rdaneel:countInventory() < minimum then
+    --     return false, 'HAVE NO ENOUGH BLOCKS'
     end
 
     turtle.goup( true )
@@ -170,22 +170,13 @@ function rdaneel:sweepField( length, width, sweepCallback )
                          | O <-----------v |
                          +-----------------+
                                < left
-
-                Big O: Starting block
-                
-                +: Untouched block
-
-                |: Placed block
-
-                > and its variants: Place to turn right
             ]]
 
             paths = {
-                width - evenDelta,         -- forward
-                length - oddDelta,         -- right
-
-                width - oddDelta,          -- back
-                length - ( evenDelta + 2 ) -- left
+                [1] = width  - evenDelta,        -- forward
+                [2] = length - oddDelta,         -- right
+                [3] = width  - oddDelta,         -- back
+                [4] = length - ( evenDelta + 2 ) -- left
             }
         end
 
@@ -198,18 +189,22 @@ function rdaneel:sweepField( length, width, sweepCallback )
         local done = false
 
         if sweepCallback then
-            assert( type( sweepCallback ) == 'function',
-                    'Callback is required to be a function' )
+            assert( type( sweepCallback ) == 'function', 'Callback is required to be a function' )
         end
 
-        for idx = 1, #paths do
-            if paths[idx] == 0 then
-                if sweepCallback then sweepCallback() end
+        for direction, nsteps in ipairs( paths ) do
+            local infoTbl = { direction = direction, round = roundIdx, steps = nil, }
+            if nsteps == 0 then
+                if sweepCallback then
+                    infoTbl.steps = 0; sweepCallback( infoTbl )
+                end
                 done = true
                 break
             else
-                for _ = 1, paths[idx] do
-                    if sweepCallback then sweepCallback() end
+                for n = 1, nsteps do
+                    if sweepCallback then
+                        infoTbl.steps = n; sweepCallback( infoTbl )
+                    end
                     turtle.gofd( true )
                 end
                 turtle.turnRight()
@@ -218,14 +213,17 @@ function rdaneel:sweepField( length, width, sweepCallback )
 
         if done then break end
     end
+
+    return true
 end
 
-local success, err = rdaneel:sweepField( 7, 10,
-    function ()
-        local exists, details = turtle.inspectDown()
-        if exists then
-            print( details )
-        end
+local success, err = rdaneel:sweepField( 11, 9,
+    function ( info )
+        print( info.direction, info.round, info.steps )
+        -- local exists, details = turtle.inspectDown()
+        -- if exists then
+        --     print( details )
+        -- end
     end
 )
 
