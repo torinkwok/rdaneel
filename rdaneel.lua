@@ -191,7 +191,7 @@ function rdaneel:sweepField( length, width, sweepCallback )
         end
 
         local x = roundIdx
-        local y = 0
+        local y = roundIdx
 
         for direction, nsteps in ipairs( paths ) do
             local infoTbl = {
@@ -208,10 +208,26 @@ function rdaneel:sweepField( length, width, sweepCallback )
             else
                 for n = 0, nsteps - 1 do
                     if sweepCallback then
-                        if direction == 1 then y = y + 1
-                        elseif direction == 2 then x = x + 1
-                        elseif direction == 3 then y = y - 1
-                        elseif direction == 4 then x = x - 1
+                        if direction == 1 then
+                            y = y + 1
+                        elseif direction == 2 then
+                            if n == 0 then
+                                y = y + 1
+                            else
+                                x = x + 1
+                            end
+                        elseif direction == 3 then
+                            if n == 0 then
+                                x = x + 1
+                            else
+                                y = y - 1
+                            end
+                        elseif direction == 4 then
+                            if n == 0 then
+                                y = y - 1
+                            else
+                                x = x - 1
+                            end
                         end
 
                         infoTbl.x = x; infoTbl.y = y; infoTbl.steps = n
@@ -230,10 +246,10 @@ function rdaneel:sweepField( length, width, sweepCallback )
 end
 
 local logFH = fs.open( 'log', 'w' )
-local success, err = rdaneel:sweepField( 10, 10,
+local success, err = rdaneel:sweepField( 11, 11,
     function ( info )
         local log = string.format(
-            "Round: %d; Dir: %d; X: %d", info.round, info.direction, info.x )
+            "Round: %d; Dir: %d; X: %d; Y: %d", info.round, info.direction, info.x, info.y )
 
         logFH.writeLine( log )
 
