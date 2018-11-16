@@ -167,10 +167,10 @@ function rdaneel:sweepField( length, width, sweepCallback )
         ]]
 
         paths = {
-            [1] = width  - evenDelta,        -- forward
-            [2] = length - oddDelta,         -- right
-            [3] = width  - oddDelta,         -- back
-            [4] = length - ( evenDelta + 2 ) -- left
+            [1] = width  - evenDelta,         -- forward
+            [2] = length - oddDelta,          -- right
+            [3] = width  - oddDelta,          -- back
+            [4] = length - ( evenDelta + 2 ), -- left
         }
 
         print( string.format( "Fd: %2d, Rt: %2d, Bk: %2d, Lt: %2d",
@@ -228,7 +228,7 @@ function rdaneel:sweepField( length, width, sweepCallback )
 end
 
 local logFH = fs.open( 'log', 'w' )
-local success, err = rdaneel:sweepField( 11, 11,
+local success, err = rdaneel:sweepField( 10, 10,
     function ( info )
         local log = string.format(
             "Round: %d; Dir: %d; X: %d; Y: %d", info.round, info.direction, info.x, info.y )
