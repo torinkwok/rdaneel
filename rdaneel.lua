@@ -132,11 +132,8 @@ end
 function rdaneel:sweepField( length, width, sweepCallback )
 
     local minimum = length * width
-
     if turtle.getFuelLevel() < minimum then
         return false, 'HAVE NO ENOUGH FUEL'
-    -- elseif rdaneel:countInventory() < minimum then
-    --     return false, 'HAVE NO ENOUGH BLOCKS'
     end
 
     turtle.goup( true )
@@ -151,34 +148,33 @@ function rdaneel:sweepField( length, width, sweepCallback )
     while true do
         local paths = nil
 
-        if roundIdx == 0 then
-            paths = { width - 1, length - 1, width - 1, length - 2 }
-        else
-            local evenDelta = roundIdx * 2
-            local oddDelta = evenDelta + 1
+        local evenDelta = roundIdx * 2
+        local oddDelta = evenDelta + 1
 
-            --[[
-                               right >
-                         +-----------------+
-                         | ^ ------------> |
-                         | | ^ --------> | |
-                         | | | + + + + | | |
-                   ^     | | | + + + + | | |  back
-                forward  | | | ^ + + + | | |   v
-                         | | | | + + + | | |
-                         | | | | <-----v | |
-                         | O <-----------v |
-                         +-----------------+
-                               < left
-            ]]
+        --[[
+                           right >
+                     +-----------------+
+                     | ^ ------------> |
+                     | | ^ --------> | |
+                     | | | + + + + | | |
+               ^     | | | + + + + | | |  back
+            forward  | | | ^ + + + | | |   v
+                     | | | | + + + | | |
+                     | | | | <-----v | |
+                     | O <-----------v |
+                     +-----------------+
+                          < left
+        ]]
 
-            paths = {
-                [1] = width  - evenDelta,        -- forward
-                [2] = length - oddDelta,         -- right
-                [3] = width  - oddDelta,         -- back
-                [4] = length - ( evenDelta + 2 ) -- left
-            }
-        end
+        paths = {
+            [1] = width  - evenDelta,        -- forward
+            [2] = length - oddDelta,         -- right
+            [3] = width  - oddDelta,         -- back
+            [4] = length - ( evenDelta + 2 ) -- left
+        }
+
+        print( string.format( "Fd: %2d, Rt: %2d, Bk: %2d, Lt: %2d",
+                              paths[1], paths[2], paths[3], paths[4] ) )
 
         -- Mark `done` as true in order to get rid of the nested
         -- loop.  Lua does not support goto-style statement until
@@ -191,7 +187,7 @@ function rdaneel:sweepField( length, width, sweepCallback )
         end
 
         local x = roundIdx
-        local y = roundIdx
+        local y = roundIdx - 1
 
         for direction, nsteps in ipairs( paths ) do
             local infoTbl = {
@@ -206,34 +202,20 @@ function rdaneel:sweepField( length, width, sweepCallback )
                 done = true
                 break
             else
-                for n = 0, nsteps - 1 do
+                for n = 1, nsteps do turtle.gofd( true )
                     if sweepCallback then
                         if direction == 1 then
                             y = y + 1
                         elseif direction == 2 then
-                            if n == 0 then
-                                y = y + 1
-                            else
-                                x = x + 1
-                            end
+                            x = x + 1
                         elseif direction == 3 then
-                            if n == 0 then
-                                x = x + 1
-                            else
-                                y = y - 1
-                            end
+                            y = y - 1
                         elseif direction == 4 then
-                            if n == 0 then
-                                y = y - 1
-                            else
-                                x = x - 1
-                            end
+                            x = x - 1
                         end
-
                         infoTbl.x = x; infoTbl.y = y; infoTbl.steps = n
                         sweepCallback( infoTbl )
                     end
-                    turtle.gofd( true )
                 end
                 turtle.turnRight()
             end
