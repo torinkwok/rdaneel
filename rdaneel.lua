@@ -54,6 +54,17 @@ function rdaneel:turtleGoUp ( times, destroy ) rdaneel:_turtleRepeat( function (
 function rdaneel:turtleGoDown ( times, destroy ) rdaneel:_turtleRepeat( function () turtle.godn( destroy ) end, times ) end
 function rdaneel:turtleGoForward ( times, destroy ) rdaneel:_turtleRepeat( function () turtle.gofd( destroy ) end, times ) end
 
+function rdaneel:goBackOrigin ( x, y, direction )
+   if direction == 1 then rdaneel:turtleTurnRight( 2 ) end
+   if direction == 2 then rdaneel:turtleTurnRight()    end
+   if direction == 4 then rdaneel:turtleTurnLeft()     end
+
+   rdaneel:turtleGoForward( y + 1, true )
+   rdaneel:turtleTurnRight()
+   rdaneel:turtleGoForward( x, true )
+   rdaneel:turtleTurnRight()
+end
+
 -- rdaneel:selectItem() selects the inventory slot with the names item,
 -- returns `true` if found and `false` if not
 
@@ -241,39 +252,45 @@ function rdaneel:sweepField( length, width, sweepCallback )
     return true
 end
 
-function rdaneel:goBackOrigin ( x, y, direction )
-   if direction == 1 then rdaneel:turtleTurnRight( 2 ) end
-   if direction == 2 then rdaneel:turtleTurnRight()    end
-   if direction == 4 then rdaneel:turtleTurnLeft()     end
+function rdaneel:sweepVolume ( length, width, height, sweepCallback )
+   for z = 0, height - 1 do
+      local success, err = rdaneel:sweepField(
+         11, 9,
+         function ( info )
+            info.z = z
+            sweepCallback( info )
 
-   rdaneel:turtleGoForward( y + 1, true )
-   rdaneel:turtleTurnRight()
-   rdaneel:turtleGoForward( x, true )
-   rdaneel:turtleTurnRight()
-   rdaneel:turtleGoUp( 1, true )
+            if info.done then
+               rdaneel:goBackOrigin( info.x, info.y, info.direction )
+            end
+         end
+      )
+      if not success then
+         return success, err
+      end
+   end
+   return true
 end
 
 local logFH = fs.open( 'log', 'w' )
-local success, err = rdaneel:sweepField( 11, 9,
-    function ( info )
-       local log = string.format(
-          "Round: %d; Dir: %d; X: %d; Y: %d; DONE: %s",
-          info.round, info.direction, info.x, info.y, tostring( info.done ) )
+local logFormat = "Round: %d; Dir: %d; X: %d; Y: %d; Z: %d; DONE: %s"
 
-       logFH.writeLine( log )
+local success, err = rdaneel:sweepVolume (
+   11, 9, 3,
+   function ( info )
+      local log = string.format(
+         logFormat,
+         info.round, info.direction, info.x, info.y, info.z, tostring( info.done ) )
 
-       local exists, details = turtle.inspectDown()
-       if exists then
-          logFH.writeLine( details.name )
-       end
+      logFH.writeLine( log )
 
-       logFH.writeLine( '*' )
-       logFH.flush()
+      local exists, details = turtle.inspectDown()
+      if exists then
+         logFH.writeLine( details.name )
+      end
 
-       if info.done then
-          rdaneel:goBackOrigin( info.x, info.y, info.direction )
-       end
-    end
+      logFH.writeLine( '*' )
+      logFH.flush()
+   end
 )
-
 assert( success, err )
