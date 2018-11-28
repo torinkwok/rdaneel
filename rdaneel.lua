@@ -254,7 +254,8 @@ function rdaneel:sweepSolid ( params )
 
    local length = params.length
    local width = params.width
-   assert( length and width, 'Length and width must be specified correctly' )
+
+   assert( length and width, 'Length and width must be specified' )
 
    local height = params.height and params.height or 1
    local reversed = params.reversed and params.reversed or false
@@ -263,7 +264,7 @@ function rdaneel:sweepSolid ( params )
    for z = 0, height - 1 do
       turtle.goup( true )
       local success, err = rdaneel:sweepFlat(
-         11, 9,
+         length, height
          function ( info )
             info.z = z; if f then f( info ) end
             if info.done then
