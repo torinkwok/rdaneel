@@ -253,11 +253,10 @@ end
 function rdaneel:sweepSolid ( params )
 
     local length, width = params.length, params.width
-
     assert( length and width, 'Length and width must be specified' )
 
-    local height = params.height and params.height or 1
-    local reversed = params.reversed and params.reversed or false
+    local height = params.height or 1
+    local reversed = params.reversed or false
     local f = params.sweepCallback
 
     local from, to, step
@@ -284,7 +283,7 @@ function rdaneel:sweepSolid ( params )
                 if info.done then
                     rdaneel:goBackOrigin( info.x, info.y, info.direction )
                 end
-            end, )
+            end )
 
         if success then
             if reversed then
@@ -300,14 +299,67 @@ function rdaneel:sweepSolid ( params )
     return true
 end
 
-local logFH = fs.open( 'log', 'w' )
-local logFormat = "Round: %d; Dir: %d; X: %d; Y: %d; Z: %d; DONE: %s"
+--[[ rdaneel:rprint( table, [limit], [indent] )
 
-local success, err = rdaneel:sweepSolid {
-    length = 11, width = 9, height = 3,
+    Recursively print arbitrary data. 
+    Set limit (default 100) to stanch infinite loops.
+]]
+function rdaneel:rprint( tbl, lim, indent )
+    local lim = lim or 100
+    local indent = indent or ''
+
+    if lim < 1 then error( 'ERROR: Item limit reached.' ) end
+
+    local ts = type( tbl )
+    if ts ~= 'table' then
+        print( indent, ts, tbl )
+        return result, lim - 1
+    end
+
+    print( indent, ts )
+
+    -- print key-value pairs
+    for k, v in pairs( tbl ) do
+        _, lim = rdaneel:rprint( v, lim, indent .. '\t[' .. tostring( k ) .. ']' )
+        if lim < 0 then
+            break
+        end
+    end
+
+    return result, lim
+end	
+
+logFH = fs.open( 'log', 'w' )
+logFormat = "Round: %d; Dir: %d; X: %d; Y: %d; Z: %d; DONE: %s"
+
+--[[ Print contents of `tbl`, with indentation.
+    `indent` sets the initial level of indentation.
+]]
+
+result = ''
+function rdaneel:tprint ( tbl, indent )
+    if not indent then indent = 0 end
+    for k, v in pairs( tbl ) do
+        formatting = string.rep( "  ", indent ) .. k .. ": "
+        if type( v ) == "table" then
+            -- io.write( formatting .. "\n" )
+            result = result .. formatting .. "\n"
+            rdaneel:tprint( v, indent + 1 )
+        else
+            -- io.write( formatting .. v .. "\n" )
+            result = result .. formatting .. v .. "\n"
+        end
+    end
+end
+
+tree = {}
+success, err = rdaneel:sweepSolid {
+    length = 4, width = 3, height = 3,
+    reversed = false,
     sweepCallback = function ( info )
+        -- Logging
         local log = string.format(
-            logFormat,
+            logFormat, 
             info.round, info.direction, info.x, info.y, info.z, tostring( info.done ) )
 
         logFH.writeLine( log )
@@ -319,6 +371,26 @@ local success, err = rdaneel:sweepSolid {
 
         logFH.writeLine( '*' )
         logFH.flush()
+        --
+        if not tree[info.z] then
+            tree[info.z] = {}
+        end
+
+        if not tree[info.z][info.round] then
+            tree[info.z][info.round] = {}
+        end
+
+        if not tree[info.z][info.round][info.direction] then
+            tree[info.z][info.round][info.direction] = {}
+        end
+
+        tree[info.z][info.round][info.direction].x = info.x
+        tree[info.z][info.round][info.direction].y = info.y
     end
 }
 assert( success, err )
+
+rdaneel:tprint( tree, 2 )
+logFH.writeLine( result )
+logFH.writeLine( '*' )
+logFH.close()
