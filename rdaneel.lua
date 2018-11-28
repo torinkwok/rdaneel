@@ -154,14 +154,12 @@ function rdaneel:selectAndPlaceDown( destroy )
     return false
 end
 
-function rdaneel:sweepField( length, width, sweepCallback )
+function rdaneel:sweepFlat( length, width, sweepCallback )
 
     local minimum = length * width
     if turtle.getFuelLevel() < minimum then
         return false, 'HAVE NO ENOUGH FUEL'
     end
-
-    turtle.goup( true )
 
     local roundIdx = 0 -- Yes, we count the number of rounds from zero
 
@@ -252,9 +250,10 @@ function rdaneel:sweepField( length, width, sweepCallback )
     return true
 end
 
-function rdaneel:sweepVolume ( length, width, height, sweepCallback )
+function rdaneel:sweepSolid ( length, width, height, sweepCallback )
    for z = 0, height - 1 do
-      local success, err = rdaneel:sweepField(
+      turtle.goup( true )
+      local success, err = rdaneel:sweepFlat(
          11, 9,
          function ( info )
             info.z = z
@@ -275,7 +274,7 @@ end
 local logFH = fs.open( 'log', 'w' )
 local logFormat = "Round: %d; Dir: %d; X: %d; Y: %d; Z: %d; DONE: %s"
 
-local success, err = rdaneel:sweepVolume (
+local success, err = rdaneel:sweepSolid (
    11, 9, 3,
    function ( info )
       local log = string.format(
