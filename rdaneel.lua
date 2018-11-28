@@ -41,10 +41,10 @@ function turtle:gofd ( destroy )
 end
 
 function rdaneel:_turtleRepeat ( action, times )
-   assert( action and type( action ) == 'function', 'action function must be specified' )
-   local n
-   if times then n = times else n = 1 end
-   for _ = 1, n do action() end
+    assert( action and type( action ) == 'function', 'action function must be specified' )
+    local n
+    if times then n = times else n = 1 end
+    for _ = 1, n do action() end
 end
 
 function rdaneel:turtleTurnLeft ( times ) rdaneel:_turtleRepeat( turtle.turnLeft, times ) end
@@ -55,14 +55,14 @@ function rdaneel:turtleGoDown ( times, destroy ) rdaneel:_turtleRepeat( function
 function rdaneel:turtleGoForward ( times, destroy ) rdaneel:_turtleRepeat( function () turtle.gofd( destroy ) end, times ) end
 
 function rdaneel:goBackOrigin ( x, y, direction )
-   if direction == 1 then rdaneel:turtleTurnRight( 2 ) end
-   if direction == 2 then rdaneel:turtleTurnRight()    end
-   if direction == 4 then rdaneel:turtleTurnLeft()     end
+    if direction == 1 then rdaneel:turtleTurnRight( 2 ) end
+    if direction == 2 then rdaneel:turtleTurnRight()    end
+    if direction == 4 then rdaneel:turtleTurnLeft()     end
 
-   rdaneel:turtleGoForward( y + 1, true )
-   rdaneel:turtleTurnRight()
-   rdaneel:turtleGoForward( x, true )
-   rdaneel:turtleTurnRight()
+    rdaneel:turtleGoForward( y + 1, true )
+    rdaneel:turtleTurnRight()
+    rdaneel:turtleGoForward( x, true )
+    rdaneel:turtleTurnRight()
 end
 
 -- rdaneel:selectItem() selects the inventory slot with the names item,
@@ -252,73 +252,73 @@ end
 
 function rdaneel:sweepSolid ( params )
 
-   local length, width = params.length, params.width
+    local length, width = params.length, params.width
 
-   assert( length and width, 'Length and width must be specified' )
+    assert( length and width, 'Length and width must be specified' )
 
-   local height = params.height and params.height or 1
-   local reversed = params.reversed and params.reversed or false
-   local f = params.sweepCallback
+    local height = params.height and params.height or 1
+    local reversed = params.reversed and params.reversed or false
+    local f = params.sweepCallback
 
-   local from, to, step
-   if reversed then
-      from = height - 1; to = 0; step = -1
-   else
-      from = 0; to = height - 1; step = 1
-   end
+    local from, to, step
+    if reversed then
+        from = height - 1; to = 0; step = -1
+    else
+        from = 0; to = height - 1; step = 1
+    end
 
-   -- lift turtle one more block so as to let turtle apply
-   -- callback to the block underneath it:
+    -- lift turtle one more block so as to let turtle apply
+    -- callback to the block underneath it:
 
-   rdaneel:turtleGoUp( from + 1, true )
+    rdaneel:turtleGoUp( from + 1, true )
 
-   for z = from, to, step do
-      local success, err = rdaneel:sweepFlat(
-         length, width,
-         function ( info )
-            info.z = z;
-            if f then
-               assert( type( f ) == 'function', 'Callback is required to be a function' ) 
-               f( info )
+    for z = from, to, step do
+        local success, err = rdaneel:sweepFlat(
+            length, width,
+            function ( info )
+                info.z = z;
+                if f then
+                    assert( type( f ) == 'function', 'Callback is required to be a function' ) 
+                    f( info )
+                end
+                if info.done then
+                    rdaneel:goBackOrigin( info.x, info.y, info.direction )
+                end
+            end, )
+
+        if success then
+            if reversed then
+                turtle.godn( true )
+            else
+                turtle.goup( true )
             end
-            if info.done then
-               rdaneel:goBackOrigin( info.x, info.y, info.direction )
-            end
-         end, )
+        else
+            return success, err
+        end
 
-      if success then
-         if reversed then
-            turtle.godn( true )
-         else
-            turtle.goup( true )
-         end
-      else
-         return success, err
-      end
-
-   end
-   return true
+    end
+    return true
 end
 
 local logFH = fs.open( 'log', 'w' )
 local logFormat = "Round: %d; Dir: %d; X: %d; Y: %d; Z: %d; DONE: %s"
 
 local success, err = rdaneel:sweepSolid {
-   length = 11, width = 9, height = 3,
-   sweepCallback = function ( info )
-      local log = string.format(
-         logFormat,
-         info.round, info.direction, info.x, info.y, info.z, tostring( info.done ) )
+    length = 11, width = 9, height = 3,
+    sweepCallback = function ( info )
+        local log = string.format(
+            logFormat,
+            info.round, info.direction, info.x, info.y, info.z, tostring( info.done ) )
 
-      logFH.writeLine( log )
+        logFH.writeLine( log )
 
-      local exists, details = turtle.inspectDown()
-      if exists then
-         logFH.writeLine( details.name )
-      end
+        local exists, details = turtle.inspectDown()
+        if exists then
+            logFH.writeLine( details.name )
+        end
 
-      logFH.writeLine( '*' )
-      logFH.flush()
-   end
+        logFH.writeLine( '*' )
+        logFH.flush()
+    end
 }
 assert( success, err )
