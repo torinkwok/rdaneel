@@ -19,21 +19,21 @@ local rdaneel = {
 rdaneel._constants = { slotsNum = 16, }
 rdaneel._constants = rdaneel._pri.protect( rdaneel._constants )
 
-function turtle:goup( destroy )
+function turtle:goup ( destroy )
     if self and turtle.detectUp() then
         turtle.digUp()
     end
     turtle.up()
 end
 
-function turtle:godn( destroy )
+function turtle:godn ( destroy )
     if self and turtle.detectDown() then
         turtle.digDown()
     end
     turtle.down()
 end
 
-function turtle:gofd( destroy )
+function turtle:gofd ( destroy )
     if self and turtle.detect() then
         turtle.dig()
     end
@@ -68,7 +68,7 @@ end
 -- rdaneel:selectItem() selects the inventory slot with the names item,
 -- returns `true` if found and `false` if not
 
-function rdaneel:selectItem( name )
+function rdaneel:selectItem ( name )
     local currentSlot = turtle.getItemDetail( turtle.getSelectedSlot() )
 
     if currentSlot and currentSlot['name'] == name then
@@ -111,7 +111,7 @@ end
 -- rdaneel:countInventory() returns the total number of items in the
 -- inventory
 
-function rdaneel:countInventory()
+function rdaneel:countInventory ()
     local total = 0
 
     for slot = 1, rdaneel._constants.slotsNum do
@@ -124,7 +124,7 @@ end
 -- selectAndPlaceDown() selects a nonempty slot and places a
 -- block from it under the turtle
 
-function rdaneel:selectAndPlaceDown( destroy )
+function rdaneel:selectAndPlaceDown ( destroy )
     for slot = 1, rdaneel._constants.slotsNum do
         if turtle.getItemCount( slot ) > 0 then
 
@@ -154,7 +154,7 @@ function rdaneel:selectAndPlaceDown( destroy )
     return false
 end
 
-function rdaneel:sweepFlat( length, width, sweepCallback )
+function rdaneel:sweepFlat ( length, width, sweepCallback )
 
     local minimum = length * width
     if turtle.getFuelLevel() < minimum then
@@ -252,8 +252,7 @@ end
 
 function rdaneel:sweepSolid ( params )
 
-   local length = params.length
-   local width = params.width
+   local length, width = params.length, params.width
 
    assert( length and width, 'Length and width must be specified' )
 
@@ -261,20 +260,42 @@ function rdaneel:sweepSolid ( params )
    local reversed = params.reversed and params.reversed or false
    local f = params.sweepCallback
 
-   for z = 0, height - 1 do
-      turtle.goup( true )
+   local from, to, step
+   if reversed then
+      from = height - 1; to = 0; step = -1
+   else
+      from = 0; to = height - 1; step = 1
+   end
+
+   -- lift turtle one more block so as to let turtle apply
+   -- callback to the block underneath it:
+
+   rdaneel:turtleGoUp( from + 1, true )
+
+   for z = from, to, step do
       local success, err = rdaneel:sweepFlat(
-         length, height
+         length, width,
          function ( info )
-            info.z = z; if f then f( info ) end
+            info.z = z;
+            if f then
+               assert( type( f ) == 'function', 'Callback is required to be a function' ) 
+               f( info )
+            end
             if info.done then
                rdaneel:goBackOrigin( info.x, info.y, info.direction )
             end
+         end, )
+
+      if success then
+         if reversed then
+            turtle.godn( true )
+         else
+            turtle.goup( true )
          end
-      )
-      if not success then
+      else
          return success, err
       end
+
    end
    return true
 end
