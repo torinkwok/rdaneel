@@ -250,15 +250,22 @@ function rdaneel:sweepFlat( length, width, sweepCallback )
     return true
 end
 
-function rdaneel:sweepSolid ( length, width, height, sweepCallback )
+function rdaneel:sweepSolid ( params )
+
+   local length = params.length
+   local width = params.width
+   assert( length and width, 'Length and width must be specified correctly' )
+
+   local height = params.height and params.height or 1
+   local reversed = params.reversed and params.reversed or false
+   local f = params.sweepCallback
+
    for z = 0, height - 1 do
       turtle.goup( true )
       local success, err = rdaneel:sweepFlat(
          11, 9,
          function ( info )
-            info.z = z
-            sweepCallback( info )
-
+            info.z = z; if f then f( info ) end
             if info.done then
                rdaneel:goBackOrigin( info.x, info.y, info.direction )
             end
@@ -274,9 +281,9 @@ end
 local logFH = fs.open( 'log', 'w' )
 local logFormat = "Round: %d; Dir: %d; X: %d; Y: %d; Z: %d; DONE: %s"
 
-local success, err = rdaneel:sweepSolid (
-   11, 9, 3,
-   function ( info )
+local success, err = rdaneel:sweepSolid {
+   length = 11, width = 9, height = 3,
+   sweepCallback = function ( info )
       local log = string.format(
          logFormat,
          info.round, info.direction, info.x, info.y, info.z, tostring( info.done ) )
@@ -291,5 +298,5 @@ local success, err = rdaneel:sweepSolid (
       logFH.writeLine( '*' )
       logFH.flush()
    end
-)
+}
 assert( success, err )
