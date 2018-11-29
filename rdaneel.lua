@@ -65,6 +65,38 @@ function rdaneel:goBackOrigin ( x, y, direction )
     rdaneel:turtleTurnRight()
 end
 
+function rdaneel:_dir2Idx ( direction )
+    local idx
+    if direction and type( direction ) == 'string' then
+        if direction == 'fd' then
+            idx = 1
+        elseif direction == 'rt' then
+            idx = 2
+        elseif direction == 'bk' then
+            idx = 3
+        elseif direction == 'lt' then
+            idx = 4
+        end
+    end
+    return idx
+end
+
+function rdaneel:_idx2Dir ( index )
+    local dir
+    if index and type( index ) == 'number' then
+        if index == 1 then
+            dir = 'fd'
+        elseif index == 2 then
+            dir = 'rt'
+        elseif index == 3 then
+            dir = 'bk'
+        elseif index == 4 then
+            dir = 'lt'
+        end
+    end
+    return dir
+end
+
 -- rdaneel:selectItem() selects the inventory slot with the names item,
 -- returns `true` if found and `false` if not
 
@@ -196,8 +228,8 @@ function rdaneel:sweepFlat ( length, width, sweepCallback )
             [4] = length - ( evenDelta + 2 ), -- left
         }
 
-        print( string.format( "Fd: %2d, Rt: %2d, Bk: %2d, Lt: %2d",
-                              paths[1], paths[2], paths[3], paths[4] ) )
+        io.write( string.format( "Fd: %2d, Rt: %2d, Bk: %2d, Lt: %2d\n",
+                                 paths[1], paths[2], paths[3], paths[4] ) )
 
         -- Mark `done` as true in order to get rid of the nested
         -- loop.  Lua does not support goto-style statement until
@@ -212,14 +244,14 @@ function rdaneel:sweepFlat ( length, width, sweepCallback )
         local x = roundIdx
         local y = roundIdx - 1
 
-        for direction, nsteps in ipairs( paths ) do
+        for direction, nsteps in pairs( paths ) do
             local infoTbl = {
                 round = roundIdx, direction = direction,
-                steps = nil, x = nil, y = nil,
+                nthStep = nil, x = nil, y = nil,
             }
             if nsteps == 0 then
                 if sweepCallback then
-                    infoTbl.x = x; infoTbl.y = y; infoTbl.steps = 0; infoTbl.done = true
+                    infoTbl.x = x; infoTbl.y = y; infoTbl.nthStep = 0; infoTbl.done = true
                     sweepCallback( infoTbl )
                 end
                 done = true
@@ -236,7 +268,7 @@ function rdaneel:sweepFlat ( length, width, sweepCallback )
                         elseif direction == 4 then
                             x = x - 1
                         end
-                        infoTbl.x = x; infoTbl.y = y; infoTbl.steps = n
+                        infoTbl.x = x; infoTbl.y = y; infoTbl.nthStep = n
                         sweepCallback( infoTbl )
                     end
                 end
@@ -329,68 +361,61 @@ function rdaneel:rprint( tbl, lim, indent )
     return result, lim
 end	
 
-logFH = fs.open( 'log', 'w' )
-logFormat = "Round: %d; Dir: %d; X: %d; Y: %d; Z: %d; DONE: %s"
-
 --[[ Print contents of `tbl`, with indentation.
     `indent` sets the initial level of indentation.
 ]]
-
-result = ''
 function rdaneel:tprint ( tbl, indent )
+    local buffer = ''
     if not indent then indent = 0 end
     for k, v in pairs( tbl ) do
         formatting = string.rep( "  ", indent ) .. k .. ": "
         if type( v ) == "table" then
-            -- io.write( formatting .. "\n" )
-            result = result .. formatting .. "\n"
-            rdaneel:tprint( v, indent + 1 )
+            buffer = buffer
+                .. formatting .. "\n"
+                .. rdaneel:tprint( v, indent + 1 )
         else
-            -- io.write( formatting .. v .. "\n" )
-            result = result .. formatting .. v .. "\n"
+            buffer = buffer .. formatting .. v .. "\n"
         end
     end
+    return buffer
 end
 
-tree = {}
+logFH = fs.open( 'log', 'w' )
+logFormat = "Round=%d; Dir=%s; nthStep=%d; [X=%d Y=%d Z=%d]; DONE=%s"
+
+local tree = {}
 success, err = rdaneel:sweepSolid {
-    length = 4, width = 3, height = 3,
+    length = 4, width = 3, height = 4,
     reversed = false,
     sweepCallback = function ( info )
+        local exists, details = turtle.inspectDown()
+        local direction = rdaneel:_idx2Dir( info.direction )
+
         -- Logging
         local log = string.format(
             logFormat, 
-            info.round, info.direction, info.x, info.y, info.z, tostring( info.done ) )
+            info.round, direction, info.nthStep,
+            info.x, info.y, info.z,
+            info.done and 'true' or 'false' )
 
         logFH.writeLine( log )
 
-        local exists, details = turtle.inspectDown()
-        if exists then
-            logFH.writeLine( details.name )
-        end
-
-        logFH.writeLine( '*' )
-        logFH.flush()
+        if exists then logFH.writeLine( details.name ) end
+        logFH.writeLine( '*' ); logFH.flush()
         --
-        if not tree[info.z] then
-            tree[info.z] = {}
-        end
+        local zTbl
+        if not tree[ info.z ] then zTbl = {}; tree[ info.z ] = zTbl else zTbl = tree[ info.z ] end
 
-        if not tree[info.z][info.round] then
-            tree[info.z][info.round] = {}
-        end
+        local roundTbl
+        if not zTbl[ info.round ] then roundTbl = {}; zTbl[ info.round ] = roundTbl else roundTbl = zTbl[ info.round ] end
 
-        if not tree[info.z][info.round][info.direction] then
-            tree[info.z][info.round][info.direction] = {}
-        end
+        local dirTbl
+        if not roundTbl[ direction ] then dirTbl = {}; roundTbl[ direction ] = dirTbl else dirTbl = roundTbl[ direction ] end        
 
-        tree[info.z][info.round][info.direction].x = info.x
-        tree[info.z][info.round][info.direction].y = info.y
+        table.insert( dirTbl, #dirTbl + 1, { x = info.x, y = info.y } )
     end
 }
 assert( success, err )
 
-rdaneel:tprint( tree, 2 )
-logFH.writeLine( result )
-logFH.writeLine( '*' )
+local result = rdaneel:tprint( tree, 2, result ); logFH.writeLine( result ); logFH.writeLine( '*' )
 logFH.close()
