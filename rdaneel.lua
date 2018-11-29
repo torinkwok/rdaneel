@@ -374,21 +374,23 @@ function rdaneel:tprint ( tbl, indent )
                 .. formatting .. "\n"
                 .. rdaneel:tprint( v, indent + 1 )
         else
-            buffer = buffer .. formatting .. v .. "\n"
+            buffer = buffer .. formatting .. tostring( v ) .. "\n"
         end
     end
     return buffer
 end
 
-logFH = fs.open( 'log', 'w' )
+logFH = fs.open( 'rdaneel.log', 'w' )
 logFormat = "Round=%d; Dir=%s; nthStep=%d; [X=%d Y=%d Z=%d]; DONE=%s"
 
 local tree = {}
 success, err = rdaneel:sweepSolid {
-    length = 4, width = 3, height = 4,
+    length = 4, width = 3, height = 1,
     reversed = false,
     sweepCallback = function ( info )
         local exists, details = turtle.inspectDown()
+        if not exists then details = {} end
+
         local direction = rdaneel:_idx2Dir( info.direction )
 
         -- Logging
@@ -412,10 +414,12 @@ success, err = rdaneel:sweepSolid {
         local dirTbl
         if not roundTbl[ direction ] then dirTbl = {}; roundTbl[ direction ] = dirTbl else dirTbl = roundTbl[ direction ] end        
 
-        table.insert( dirTbl, #dirTbl + 1, { x = info.x, y = info.y } )
+        table.insert( dirTbl, #dirTbl + 1,
+                      { x = info.x, y = info.y, block = details, } )
     end
 }
 assert( success, err )
 
-local result = rdaneel:tprint( tree, 2, result ); logFH.writeLine( result ); logFH.writeLine( '*' )
+logFH.writeLine( rdaneel:tprint( tree, 2, result ) )
+logFH.writeLine( '*' )
 logFH.close()
