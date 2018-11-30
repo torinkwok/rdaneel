@@ -19,10 +19,6 @@ local rdaneel = {
 rdaneel._constants = { slotsNum = 16, }
 rdaneel._constants = rdaneel._pri.protect( rdaneel._constants )
 
-local function exportstring( s )
-    return string.format( "%q", s )
-end
-
 --[[ Save Table to File
 
     Only Saves Tables, Numbers and Strings Insides Table
@@ -31,7 +27,12 @@ end
 
     ON FAILURE: Returns an error message.
 ]]
-function table.save ( tbl, filename )
+local function _blueprint_save ( tbl, filename )
+
+    local _exportstring = function ( s )
+        return string.format( "%q", s )
+    end
+
     local cs, ce = '   ', "\n"
     local fh, err = io.open( filename, 'w' )
 
@@ -61,7 +62,7 @@ function table.save ( tbl, filename )
                 fh:write( cs .. '{' .. lookup[v] .. '},' .. ce )
 
             elseif stype == "string" then
-                fh:write(  cs .. exportstring( v ) .. ',' .. ce )
+                fh:write(  cs .. _exportstring( v ) .. ',' .. ce )
 
             elseif stype == "number" or stype == "boolean" then
                 fh:write(  cs .. tostring( v ) .. ',' .. ce )
@@ -84,7 +85,7 @@ function table.save ( tbl, filename )
                     str = cs .. "[{" .. lookup[i] .. "}]="
 
                 elseif stype == "string" then
-                    str = cs .. "[" .. exportstring( i ) .. "]="
+                    str = cs .. "[" .. _exportstring( i ) .. "]="
 
                 elseif stype == "number" or stype == "boolean" then
                     str = cs .. "[" .. tostring( i ) .. "]="
@@ -101,7 +102,7 @@ function table.save ( tbl, filename )
                         fh:write( str .. '{' .. lookup[v] .. '},' .. ce )
 
                     elseif stype == "string" then
-                        fh:write( str .. exportstring( v ) .. ',' .. ce )
+                        fh:write( str .. _exportstring( v ) .. ',' .. ce )
 
                     elseif stype == "number" or stype == "boolean" then
                         fh:write( str .. tostring( v ) .. ',' .. ce )
@@ -117,13 +118,13 @@ end
 
 --[[ Load Table from File
     
-    Loads a table that has been saved via the table.save()
+    Loads a table that has been saved via the _blueprint_save()
     function.
     
     ON SUCCESS: Returns a previously saved table.
     ON FAILURE: Returns as second argument an error msg.
 ]]
-function table.load ( sfile )
+local function _blueprint_load ( sfile )
     local ftables, err = loadfile( sfile )
 
     if err then return _, err end
@@ -548,9 +549,9 @@ success, err = rdaneel:sweepSolid {
 }
 
 assert( success, err )
-assert( table.save( tree, "blueprint.dat" ) == nil )
+assert( _blueprint_save( tree, "blueprint.dat" ) == nil )
 
-local blueprintTbl, err = table.load( "blueprint.dat" )
+local blueprintTbl, err = _blueprint_load( "blueprint.dat" )
 assert( err == nil )
 
 logFH.writeLine( rdaneel:tprint( tree, 2, result ) )
