@@ -32,19 +32,18 @@ end
     ON FAILURE: Returns an error message.
 ]]
 function table.save ( tbl, filename )
-
-    local charS, charE = "   ","\n"
-    local file, err = io.open( filename, "w" )
+    local cs, ce = '   ', "\n"
+    local fh, err = io.open( filename, 'w' )
 
     if err then return err end
 
     -- initiate variables for save procedure
     local tables, lookup = { tbl }, { [tbl] = 1 }
-    file:write( "return {" .. charE )
+    fh:write( "return {" .. ce )
 
     for idx, t in ipairs( tables ) do
-        file:write( "-- Table: {" .. idx .. "}" .. charE )
-        file:write( "{" .. charE )
+        fh:write( "-- Table: {" .. idx .. '}' .. ce )
+        fh:write( '{' .. ce )
 
         local thandled = {}
 
@@ -59,13 +58,13 @@ function table.save ( tbl, filename )
                     table.insert( tables, v )
                     lookup[v] = #tables
                 end
-                file:write( charS .. "{" .. lookup[v] .. "}," .. charE )
+                fh:write( cs .. '{' .. lookup[v] .. '},' .. ce )
 
             elseif stype == "string" then
-                file:write(  charS .. exportstring( v ) .. "," .. charE )
+                fh:write(  cs .. exportstring( v ) .. ',' .. ce )
 
-            elseif stype == "number" then
-                file:write(  charS .. tostring( v ) .. "," .. charE )
+            elseif stype == "number" or stype == "boolean" then
+                fh:write(  cs .. tostring( v ) .. ',' .. ce )
             end
         end
 
@@ -73,47 +72,47 @@ function table.save ( tbl, filename )
 
             -- escape handled values
             if not thandled[i] then
-                local str = ""
+                local str = ''
                 local stype = type( i )
 
                 -- handle index
                 if stype == "table" then
                     if not lookup[i] then
-                        table.insert( tables,i )
+                        table.insert( tables, i )
                         lookup[i] = #tables
                     end
-                    str = charS .. "[{" .. lookup[i] .. "}]="
+                    str = cs .. "[{" .. lookup[i] .. "}]="
 
                 elseif stype == "string" then
-                    str = charS .. "[" .. exportstring( i ) .. "]="
+                    str = cs .. "[" .. exportstring( i ) .. "]="
 
                 elseif stype == "number" or stype == "boolean" then
-                    str = charS .. "[" .. tostring( i ) .. "]="
+                    str = cs .. "[" .. tostring( i ) .. "]="
                 end
                 
-                if str ~= "" then
+                if str ~= '' then
                     stype = type( v )
                     -- handle value
                     if stype == "table" then
                         if not lookup[v] then
-                            table.insert( tables,v )
+                            table.insert( tables, v )
                             lookup[v] = #tables
                         end
-                        file:write( str .. "{" .. lookup[v] .. "}," .. charE )
+                        fh:write( str .. '{' .. lookup[v] .. '},' .. ce )
 
                     elseif stype == "string" then
-                        file:write( str .. exportstring( v ) .. "," .. charE )
+                        fh:write( str .. exportstring( v ) .. ',' .. ce )
 
-                    elseif stype == "number" then
-                        file:write( str .. tostring( v ) .. "," .. charE )
+                    elseif stype == "number" or stype == "boolean" then
+                        fh:write( str .. tostring( v ) .. ',' .. ce )
                     end
                 end
             end
         end
-        file:write( "}," .. charE )
+        fh:write( '},' .. ce )
     end
-    file:write( "}" )
-    file:close()
+    fh:write( '}' )
+    fh:close()
 end
 
 --[[ Load Table from File
@@ -125,7 +124,7 @@ end
     ON FAILURE: Returns as second argument an error msg.
 ]]
 function table.load ( sfile )
-    local ftables,err = loadfile( sfile )
+    local ftables, err = loadfile( sfile )
 
     if err then return _, err end
 
@@ -137,12 +136,12 @@ function table.load ( sfile )
                 tables[idx][i] = tables[ v[1] ]
             end
             if type( i ) == "table" and tables[ i[1] ] then
-                table.insert( tolinki, { i,tables[ i[1] ] } )
+                table.insert( tolinki, { i, tables[ i[1] ] } )
             end
         end
         -- link indices
         for _, v in ipairs( tolinki ) do
-            tables[idx][ v[2] ],tables[idx][ v[1] ] = tables[idx][ v[1] ], nil
+            tables[idx][ v[2] ], tables[idx][ v[1] ] = tables[idx][ v[1] ], nil
         end
     end
     return tables[1]
