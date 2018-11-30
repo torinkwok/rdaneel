@@ -85,10 +85,10 @@ local function _blueprint_save ( tbl, filename )
                     str = cs .. "[{" .. lookup[i] .. "}]="
 
                 elseif stype == "string" then
-                    str = cs .. "[" .. _exportstring( i ) .. "]="
+                    str = cs .. '[' .. _exportstring( i ) .. "]="
 
                 elseif stype == "number" or stype == "boolean" then
-                    str = cs .. "[" .. tostring( i ) .. "]="
+                    str = cs .. '[' .. tostring( i ) .. "]="
                 end
                 
                 if str ~= '' then
@@ -460,36 +460,6 @@ function rdaneel:sweepSolid ( params )
     return true
 end
 
---[[ rdaneel:rprint( table, [limit], [indent] )
-
-    Recursively print arbitrary data. 
-    Set limit (default 100) to stanch infinite loops.
-]]
-function rdaneel:rprint( tbl, lim, indent )
-    local lim = lim or 100
-    local indent = indent or ''
-
-    if lim < 1 then error( 'ERROR: Item limit reached.' ) end
-
-    local ts = type( tbl )
-    if ts ~= 'table' then
-        print( indent, ts, tbl )
-        return result, lim - 1
-    end
-
-    print( indent, ts )
-
-    -- print key-value pairs
-    for k, v in pairs( tbl ) do
-        _, lim = rdaneel:rprint( v, lim, indent .. '\t[' .. tostring( k ) .. ']' )
-        if lim < 0 then
-            break
-        end
-    end
-
-    return result, lim
-end	
-
 --[[ Print contents of `tbl`, with indentation.
     `indent` sets the initial level of indentation.
 ]]
@@ -509,53 +479,128 @@ function rdaneel:tprint ( tbl, indent )
     return buffer
 end
 
-logFH = fs.open( 'rdaneel.log', 'w' )
-logFormat = "Round=%d; Dir=%s; nthStep=%d; [X=%d Y=%d Z=%d]; DONE=%s"
+--[[ POSIX style command line argument parser.
 
-local tree = {}
-success, err = rdaneel:sweepSolid {
-    length = 4, width = 3, height = 3,
-    reversed = true,
-    sweepCallback = function ( info )
-        local exists, details = turtle.inspectDown()
-        if not exists then details = {} end
+    PARAM `args` contains the command line arguments in a standard table.
+    PARAM `options` is a string with the letters that expect string values.
 
-        local direction = rdaneel:_idx2Dir( info.direction )
+    Returns a table where associated keys are true, nil, or a string value.
 
-        -- Logging
-        local log = string.format(
-            logFormat, 
-            info.round, direction, info.nthStep,
-            info.x, info.y, info.z,
-            info.done and 'true' or 'false' )
+    The following example styles are supported:
 
-        logFH.writeLine( log )
+    -a one  ==> opts['a'] == 'one'
+    -bone   ==> opts['b'] == 'one'
+    -c      ==> opts['c'] == true
+    --c=one ==> opts['c'] == 'one'
+    -cdaone ==> opts['c'] == true; opts['d'] == true; opts['a'] == 'one'
 
-        if exists then logFH.writeLine( details.name ) end
-        logFH.writeLine( '*' ); logFH.flush()
-        --
-        local zTbl
-        if not tree[ info.z ] then zTbl = {}; tree[ info.z ] = zTbl else zTbl = tree[ info.z ] end
+    NOTE: POSIX demands the parser ends at the first non option
+    this behavior isn't implemented.
+]]
+local function posix_getopt ( args, options )
+    local opts = {}
 
-        local roundTbl
-        if not zTbl[ info.round ] then roundTbl = {}; zTbl[ info.round ] = roundTbl else roundTbl = zTbl[ info.round ] end
+    for k, v in ipairs( args ) do
+        if string.sub( v, 1, 2 ) == "--" then
+            local x = string.find( v, '=', 1, true )
+            if x then
+                opts[ string.sub( v, 3, x - 1 ) ] = string.sub( v, x + 1 )
+            else
+                opts[ string.sub( v, 3 ) ] = true
+            end
 
-        local dirTbl
-        if not roundTbl[ direction ] then dirTbl = {}; roundTbl[ direction ] = dirTbl else dirTbl = roundTbl[ direction ] end        
+        elseif string.sub( v, 1, 1 ) == '-' then
+            local y = 2
+            local l = string.len( v )
+            local jopt
 
-        table.insert( dirTbl, #dirTbl + 1,
-                      { x = info.x, y = info.y, block = details, } )
+            while ( y <= l ) do
+                jopt = string.sub( v, y, y )
+                if string.find( options, jopt, 1, true ) then
+                    if y < l then
+                        opts[ jopt ] = string.sub( v, y + 1 )
+                        y = l
+                    else
+                        opts[ jopt ] = args[ k + 1 ]
+                    end
+                else
+                    opts[ jopt ] = true
+                end
+                y = y + 1
+            end
+        end
     end
-}
+    return opts
+end
 
-assert( success, err )
-assert( _blueprint_save( tree, "blueprint.dat" ) == nil )
+---8<---
 
-local blueprintTbl, err = _blueprint_load( "blueprint.dat" )
-assert( err == nil )
+do
+    local logfh = fs.open( 'rdaneel.log', 'w' )
+    local logformat = "Round=%d; Dir=%s; nthStep=%d; [X=%d Y=%d Z=%d]; DONE=%s"
 
-logFH.writeLine( rdaneel:tprint( tree, 2, result ) )
-logFH.writeLine( '*' )
-logFH.writeLine( rdaneel:tprint( blueprintTbl, 2, result ) )
+    local cli_args = {...}
+    local verb = table.remove( cli_args, 1 )
 
-logFH.close()
+    if verb == 'draft' then
+        local opts = posix_getopt( cli_args, 'lwhog' )
+
+        assert( opts.h and opts.w and opts.h, "Length [-l], width [-w] and height [-h] must all be specified correctly" )
+        assert( opts.o and #opts.o > 0, "Output file [-o] must be specified correctly" )
+
+        local l, w, h = tonumber( opts.l ), tonumber( opts.w ), tonumber( opts.h )
+        local o = opts.o
+
+        assert( type( l ) == 'number' and type( w ) == 'number' and type( h ) == 'number',
+                "Length, width, and height must all be numbers" )
+
+        local tree = {}
+        local success, err = rdaneel:sweepSolid {
+            length = l, width = w, height = h,
+            reversed = true,
+            sweepCallback = function ( info )
+                local exists, details = turtle.inspectDown()
+                if not exists then details = {} end
+
+                local direction = rdaneel:_idx2Dir( info.direction )
+
+                -- Logging
+                local log = string.format(
+                    logformat, 
+                    info.round, direction, info.nthStep,
+                    info.x, info.y, info.z,
+                    info.done and 'true' or 'false' )
+
+                logfh.writeLine( log )
+
+                if exists then logfh.writeLine( details.name ) end
+                logfh.writeLine( '*' ); logfh.flush()
+                --
+                local zTbl
+                if not tree[ info.z ] then zTbl = {}; tree[ info.z ] = zTbl else zTbl = tree[ info.z ] end
+
+                local roundTbl
+                if not zTbl[ info.round ] then roundTbl = {}; zTbl[ info.round ] = roundTbl else roundTbl = zTbl[ info.round ] end
+
+                local dirTbl
+                if not roundTbl[ direction ] then dirTbl = {}; roundTbl[ direction ] = dirTbl else dirTbl = roundTbl[ direction ] end        
+
+                table.insert( dirTbl, #dirTbl + 1,
+                              { x = info.x, y = info.y, block = details, } )
+            end
+        }; assert( success, err )
+
+        if _blueprint_save( tree, o ) ~= nil then
+            error( "Failed to creating output file" )
+        end
+
+        logfh.writeLine( rdaneel:tprint( tree ) )
+        logfh.close()
+    else
+        print( "Usages:\n"
+                   .. "\trdaneel draft -l4 -w3 -l3 -o output\n"
+                   .. "\trdaneel craft -i input" )
+        return false
+    end
+    return true
+end
