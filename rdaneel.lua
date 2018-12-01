@@ -34,9 +34,11 @@ local function _blueprint_save ( tbl, filename )
     end
 
     local cs, ce = '   ', "\n"
-    local fh, err = io.open( filename, 'w' )
+    local fh = io.open( filename, 'w' )
 
-    if err then return err end
+    if not fh then
+        return "Failed to open " .. filename .. " to write"
+    end
 
     -- initiate variables for save procedure
     local tables, lookup = { tbl }, { [tbl] = 1 }
@@ -536,27 +538,13 @@ end
 ---8<---
 
 do
-    local logfh = fs.open( 'rdaneel.log', 'w' )
-    local logformat = "Round=%d; Dir=%s; nthStep=%d; [X=%d Y=%d Z=%d]; DONE=%s"
-
-    local cli_args = {...}
-    local verb = table.remove( cli_args, 1 )
-
-    if verb == 'draft' then
-        local opts = posix_getopt( cli_args, 'lwhog' )
-
-        assert( opts.h and opts.w and opts.h, "Length [-l], width [-w] and height [-h] must all be specified correctly" )
-        assert( opts.o and #opts.o > 0, "Output file [-o] must be specified correctly" )
-
-        local l, w, h = tonumber( opts.l ), tonumber( opts.w ), tonumber( opts.h )
-        local o = opts.o
-
-        assert( type( l ) == 'number' and type( w ) == 'number' and type( h ) == 'number',
-                "Length, width, and height must all be numbers" )
+    local function _draft ( params )
+        local logfh = fs.open( 'rdaneel.log', 'w' )
+        local logformat = "Round=%d; Dir=%s; nthStep=%d; [X=%d Y=%d Z=%d]; DONE=%s"
 
         local tree = {}
         local success, err = rdaneel:sweepSolid {
-            length = l, width = w, height = h,
+            length = params.l, width = params.w, height = params.h,
             reversed = true,
             sweepCallback = function ( info )
                 local exists, details = turtle.inspectDown()
@@ -590,12 +578,31 @@ do
             end
         }; assert( success, err )
 
-        if _blueprint_save( tree, o ) ~= nil then
-            error( "Failed to creating output file" )
+        local err_msg = _blueprint_save( tree, params.o )
+        if err_msg ~= nil then
+            error( err_msg )
         end
 
         logfh.writeLine( rdaneel:tprint( tree ) )
         logfh.close()
+    end
+
+    local cli_args = {...}
+    local verb = table.remove( cli_args, 1 )
+
+    if verb == 'draft' then
+        local opts = posix_getopt( cli_args, 'lwhog' )
+
+        assert( opts.h and opts.w and opts.h, "Length [-l], width [-w] and height [-h] must all be specified correctly" )
+        assert( opts.o and #opts.o > 0, "Output file [-o] must be specified correctly" )
+
+        local l, w, h = tonumber( opts.l ), tonumber( opts.w ), tonumber( opts.h )
+        local o = opts.o
+
+        assert( type( l ) == 'number' and type( w ) == 'number' and type( h ) == 'number',
+                "Length, width, and height must all be numbers" )
+
+        _draft { l = l, w = w, h = h, o = o, f = logfh }
     else
         print( "Usages:\n"
                    .. "\trdaneel draft -l4 -w3 -l3 -o output\n"
