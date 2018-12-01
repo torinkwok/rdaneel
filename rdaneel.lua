@@ -27,7 +27,7 @@ rdaneel._constants = rdaneel._pri.protect( rdaneel._constants )
 
     ON FAILURE: Returns an error message.
 ]]
-local function _blueprint_save ( tbl, filename )
+local function bpsave ( tbl, filename )
 
     local _exportstring = function ( s )
         return string.format( "%q", s )
@@ -120,15 +120,14 @@ end
 
 --[[ Load Table from File
     
-    Loads a table that has been saved via the _blueprint_save()
+    Loads a table that has been saved via the bpsave()
     function.
     
     ON SUCCESS: Returns a previously saved table.
     ON FAILURE: Returns as second argument an error msg.
 ]]
-local function _blueprint_load ( sfile )
+local function bpload ( sfile )
     local ftables, err = loadfile( sfile )
-
     if err then return _, err end
 
     local tables = ftables()
@@ -317,7 +316,7 @@ function rdaneel:selectAndPlaceDown ( destroy )
     return false
 end
 
-function rdaneel:sweepFlat ( length, width, sweepCallback )
+local function sweep_flat ( length, width, sweepCallback )
 
     local minimum = length * width
     if turtle.getFuelLevel() < minimum then
@@ -413,7 +412,7 @@ function rdaneel:sweepFlat ( length, width, sweepCallback )
     return true
 end
 
-function rdaneel:sweepSolid ( args )
+local function sweep_solid ( args )
 
     local length, width = args.length, args.width
     assert( length and width, 'Length and width must be specified' )
@@ -435,7 +434,7 @@ function rdaneel:sweepSolid ( args )
     rdaneel:turtleGoUp( from + 1, true )
 
     for z = from, to, step do
-        local success, err = rdaneel:sweepFlat(
+        local success, err = sweep_flat(
             length, width,
             function ( info )
                 info.z = z;
@@ -465,7 +464,7 @@ end
 --[[ Print contents of `tbl`, with indentation.
     `indent` sets the initial level of indentation.
 ]]
-function rdaneel:tprint ( tbl, indent )
+local function tformat ( tbl, indent )
     local buffer = ''
     if not indent then indent = 0 end
     for k, v in pairs( tbl ) do
@@ -473,7 +472,7 @@ function rdaneel:tprint ( tbl, indent )
         if type( v ) == "table" then
             buffer = buffer
                 .. formatting .. "\n"
-                .. rdaneel:tprint( v, indent + 1 )
+                .. tformat( v, indent + 1 )
         else
             buffer = buffer .. formatting .. tostring( v ) .. "\n"
         end
@@ -537,64 +536,78 @@ end
 
 ---8<---
 
-do
-    local function _draft ( args )
-        local logfh, logformat
+-- draft
 
-        if args.g then
-            logfh = fs.open( 'rdaneel.log', 'w' )
-            logformat = "Round=%d; Dir=%s; nthStep=%d; [X=%d Y=%d Z=%d]; DONE=%s"
-        end
+local function draft ( args )
+    local logfh, logformat
 
-        local tree = {}
-        local success, err = rdaneel:sweepSolid {
-            length = args.l, width = args.w, height = args.h,
-            reversed = true,
-            sweepCallback = function ( info )
-                local exists, details = turtle.inspectDown()
-                if not exists then details = {} end
-
-                local direction = rdaneel:_idx2Dir( info.direction )
-
-                -- Logging
-                if logfh then
-                    local log = string.format(
-                        logformat, 
-                        info.round, direction, info.nthStep,
-                        info.x, info.y, info.z,
-                        info.done and 'true' or 'false' )
-
-                    logfh.writeLine( log )
-
-                    if exists then logfh.writeLine( details.name ) end
-                    logfh.writeLine( '*' ); logfh.flush()
-                end
-                --
-                local zTbl
-                if not tree[ info.z ] then zTbl = {}; tree[ info.z ] = zTbl else zTbl = tree[ info.z ] end
-
-                local roundTbl
-                if not zTbl[ info.round ] then roundTbl = {}; zTbl[ info.round ] = roundTbl else roundTbl = zTbl[ info.round ] end
-
-                local dirTbl
-                if not roundTbl[ direction ] then dirTbl = {}; roundTbl[ direction ] = dirTbl else dirTbl = roundTbl[ direction ] end        
-
-                table.insert( dirTbl, #dirTbl + 1,
-                              { x = info.x, y = info.y, block = details, } )
-            end
-        }; assert( success, err )
-
-        local err_msg = _blueprint_save( tree, args.o )
-        if err_msg ~= nil then
-            error( err_msg )
-        end
-
-        if logfh then
-            logfh.writeLine( rdaneel:tprint( tree ) )
-            logfh.close()
-        end
+    if args.g then
+        logfh = fs.open( 'rdaneel.log', 'w' )
+        logformat = "Round=%d; Dir=%s; nthStep=%d; [X=%d Y=%d Z=%d]; DONE=%s"
     end
 
+    local tree = {}
+    local success, err = sweep_solid {
+        length = args.l, width = args.w, height = args.h,
+        reversed = true,
+        sweepCallback = function ( info )
+            local exists, details = turtle.inspectDown()
+            if not exists then details = {} end
+
+            local direction = rdaneel:_idx2Dir( info.direction )
+
+            -- Logging
+            if logfh then
+                local log = string.format(
+                    logformat, 
+                    info.round, direction, info.nthStep,
+                    info.x, info.y, info.z,
+                    info.done and 'true' or 'false' )
+
+                logfh.writeLine( log )
+
+                if exists then logfh.writeLine( details.name ) end
+                logfh.writeLine( '*' ); logfh.flush()
+            end
+            --
+            local zTbl
+            if not tree[ info.z ] then zTbl = {}; tree[ info.z ] = zTbl else zTbl = tree[ info.z ] end
+
+            local roundTbl
+            if not zTbl[ info.round ] then roundTbl = {}; zTbl[ info.round ] = roundTbl else roundTbl = zTbl[ info.round ] end
+
+            local dirTbl
+            if not roundTbl[ direction ] then dirTbl = {}; roundTbl[ direction ] = dirTbl else dirTbl = roundTbl[ direction ] end        
+
+            table.insert( dirTbl, #dirTbl + 1,
+                          { x = info.x, y = info.y, block = details, } )
+        end
+    }; assert( success, err )
+
+    local err_msg = bpsave( tree, args.o )
+    if err_msg ~= nil then
+        error( err_msg )
+    end
+
+    if logfh then
+        logfh.writeLine( tformat( tree ) )
+        logfh.close()
+    end
+end
+
+-- craft
+
+local function craft ( args )
+    local bptbl, err_msg = bpload( args.i )
+    assert( bptbl, err_msg )
+
+    local l = bptbl[0][0].rt[3].x + 1
+    -- local w = bptbl[0][0].fd[
+    local h = #bptbl + 1
+    print( l, h )
+end
+
+do
     local cli_args = {...}
     local verb = table.remove( cli_args, 1 )
 
@@ -610,13 +623,22 @@ do
         assert( type( l ) == 'number' and type( w ) == 'number' and type( h ) == 'number',
                 "Length, width, and height must all be numbers" )
 
-        _draft { l = l, w = w, h = h, o = o, g = true }
+        draft { l = l,
+                w = w,
+                h = h,
+                o = o,
+                g = true }
+
     elseif verb == 'craft' then
-        
+        local opts = posix_getopt( cli_args, 'ig' ) -- TODO: To process -g flag
+        assert( opts.i and #opts.i > 0, "Input file [-i] must be specified correctly" )
+
+        local i = opts.i
+        craft { i = i, g = true }
     else
         print( "Usages:\n"
                    .. "\trdaneel draft -l4 -w3 -l3 -o output\n"
-                   .. "\trdaneel craft -i input" )
+                   .. "\trdaneel craft --i=input -g" )
         return false
     end
     return true
