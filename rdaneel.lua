@@ -413,14 +413,14 @@ function rdaneel:sweepFlat ( length, width, sweepCallback )
     return true
 end
 
-function rdaneel:sweepSolid ( params )
+function rdaneel:sweepSolid ( args )
 
-    local length, width = params.length, params.width
+    local length, width = args.length, args.width
     assert( length and width, 'Length and width must be specified' )
 
-    local height = params.height or 1
-    local reversed = params.reversed or false
-    local f = params.sweepCallback
+    local height = args.height or 1
+    local reversed = args.reversed or false
+    local f = args.sweepCallback
 
     local from, to, step
     if reversed then
@@ -538,13 +538,17 @@ end
 ---8<---
 
 do
-    local function _draft ( params )
-        local logfh = fs.open( 'rdaneel.log', 'w' )
-        local logformat = "Round=%d; Dir=%s; nthStep=%d; [X=%d Y=%d Z=%d]; DONE=%s"
+    local function _draft ( args )
+        local logfh, logformat
+
+        if args.g then
+            logfh = fs.open( 'rdaneel.log', 'w' )
+            logformat = "Round=%d; Dir=%s; nthStep=%d; [X=%d Y=%d Z=%d]; DONE=%s"
+        end
 
         local tree = {}
         local success, err = rdaneel:sweepSolid {
-            length = params.l, width = params.w, height = params.h,
+            length = args.l, width = args.w, height = args.h,
             reversed = true,
             sweepCallback = function ( info )
                 local exists, details = turtle.inspectDown()
@@ -553,16 +557,18 @@ do
                 local direction = rdaneel:_idx2Dir( info.direction )
 
                 -- Logging
-                local log = string.format(
-                    logformat, 
-                    info.round, direction, info.nthStep,
-                    info.x, info.y, info.z,
-                    info.done and 'true' or 'false' )
+                if logfh then
+                    local log = string.format(
+                        logformat, 
+                        info.round, direction, info.nthStep,
+                        info.x, info.y, info.z,
+                        info.done and 'true' or 'false' )
 
-                logfh.writeLine( log )
+                    logfh.writeLine( log )
 
-                if exists then logfh.writeLine( details.name ) end
-                logfh.writeLine( '*' ); logfh.flush()
+                    if exists then logfh.writeLine( details.name ) end
+                    logfh.writeLine( '*' ); logfh.flush()
+                end
                 --
                 local zTbl
                 if not tree[ info.z ] then zTbl = {}; tree[ info.z ] = zTbl else zTbl = tree[ info.z ] end
@@ -578,20 +584,22 @@ do
             end
         }; assert( success, err )
 
-        local err_msg = _blueprint_save( tree, params.o )
+        local err_msg = _blueprint_save( tree, args.o )
         if err_msg ~= nil then
             error( err_msg )
         end
 
-        logfh.writeLine( rdaneel:tprint( tree ) )
-        logfh.close()
+        if logfh then
+            logfh.writeLine( rdaneel:tprint( tree ) )
+            logfh.close()
+        end
     end
 
     local cli_args = {...}
     local verb = table.remove( cli_args, 1 )
 
     if verb == 'draft' then
-        local opts = posix_getopt( cli_args, 'lwhog' )
+        local opts = posix_getopt( cli_args, 'lwhog' ) -- TODO: To process -g flag
 
         assert( opts.h and opts.w and opts.h, "Length [-l], width [-w] and height [-h] must all be specified correctly" )
         assert( opts.o and #opts.o > 0, "Output file [-o] must be specified correctly" )
@@ -602,7 +610,9 @@ do
         assert( type( l ) == 'number' and type( w ) == 'number' and type( h ) == 'number',
                 "Length, width, and height must all be numbers" )
 
-        _draft { l = l, w = w, h = h, o = o, f = logfh }
+        _draft { l = l, w = w, h = h, o = o, g = true }
+    elseif verb == 'craft' then
+        
     else
         print( "Usages:\n"
                    .. "\trdaneel draft -l4 -w3 -l3 -o output\n"
