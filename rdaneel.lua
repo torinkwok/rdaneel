@@ -19,16 +19,39 @@ local rdaneel = {
 rdaneel._constants = { slotsNum = 16, }
 rdaneel._constants = rdaneel._pri.protect( rdaneel._constants )
 
---[[ Save Table to File
+function table.find ( arr, pred )
+    for _, v in ipairs( arr ) do
+        if pred( v ) then return v end
+    end
+    return nil
+end
 
-    Only Saves Tables, Numbers and Strings Insides Table
-    References are saved Does not save Userdata, Metatables,
-    Functions and indices of these.
+function table.shallow_len ( tbl )
+    local count = 0
+    for _ in pairs( tbl ) do count = count + 1 end
+    return count
+end
 
+function table.dump ( tbl, indent )
+    local buffer = ''
+    if not indent then indent = 0 end
+    for k, v in pairs( tbl ) do
+        formatting = string.rep( "  ", indent ) .. k .. ": "
+        if type( v ) == "table" then
+            buffer = buffer
+                .. formatting .. "\n"
+                .. table.dump( v, indent + 1 )
+        else
+            buffer = buffer .. formatting .. tostring( v ) .. "\n"
+        end
+    end
+    return buffer
+end
+
+--[[
     ON FAILURE: Returns an error message.
 ]]
 local function bpsave ( tbl, filename )
-
     local _exportstring = function ( s )
         return string.format( "%q", s )
     end
@@ -118,13 +141,9 @@ local function bpsave ( tbl, filename )
     fh:close()
 end
 
---[[ Load Table from File
-    
-    Loads a table that has been saved via the bpsave()
-    function.
-    
-    ON SUCCESS: Returns a previously saved table.
-    ON FAILURE: Returns as second argument an error msg.
+--[[
+    ON SUCCESS: Returns a previously saved blueprint.
+    ON FAILURE: Returns as second argument an error message.
 ]]
 local function bpload ( sfile )
     local ftables, err = loadfile( sfile )
@@ -227,13 +246,30 @@ function rdaneel:_idx2Dir ( index )
     return dir
 end
 
--- rdaneel:selectItem() selects the inventory slot with the names item,
--- returns `true` if found and `false` if not
+local NAMEID_VARIANTS = {
+    ['minecraft:redstone'] = { 'minecraft:redstone_wire' },
+    ['minecraft:repeater'] = { 'minecraft:powered_repeater', 'minecraft:unpowered_repeater' },
+    ['minecraft:comparator'] = { 'minecraft:powered_comparator', 'minecraft:unpowered_comparator' },
+    ['minecraft:redstone_torch'] = { 'minecraft:unlit_redstone_torch' },
+    ['minecraft:redstone_lamp'] = { 'minecraft:lit_redstone_lamp' },
+}
 
-function rdaneel:selectItem ( name )
+local function nameid_map ( id )
+    for std, variants in pairs( NAMEID_VARIANTS ) do
+        if table.find( variants, function ( v ) return id == v end ) then
+            return std
+        end
+    end
+    return id
+end
+
+-- turtle_select_item() selects the inventory slot with the names
+-- item, returns `true` if found and `false` if not
+
+local function turtle_select_item ( name )
     local currentSlot = turtle.getItemDetail( turtle.getSelectedSlot() )
 
-    if currentSlot and currentSlot['name'] == name then
+    if currentSlot and currentSlot.name == name then
         return true
     end
 
@@ -243,7 +279,7 @@ function rdaneel:selectItem ( name )
 
     for slot = 1, rdaneel._constants.slotsNum do
         item = turtle.getItemDetail( slot )
-        if item and item['name'] == name then
+        if item and item.name == name then
             return turtle.select( slot )
         end
     end
@@ -251,10 +287,10 @@ function rdaneel:selectItem ( name )
     return false -- couldn't find item
 end
 
--- rdaneel:selectEmptySlot() selects inventory slot that is empty,
+-- turtle_select_empty_slot selects inventory slot that is empty,
 -- returns `true` if found, `false` if no empty spaces
 
-function rdaneel:selectEmptySlot()
+local function turtle_select_empty_slot()
     if turtle.getItemCount( turtle.getSelectedSlot() ) == 0 then
         return true
     end
@@ -270,10 +306,10 @@ function rdaneel:selectEmptySlot()
     return false -- couldn't find empty space
 end
 
--- rdaneel:countInventory() returns the total number of items in the
--- inventory
+-- turtle_count_inventory() returns the total number of items in
+-- the inventory
 
-function rdaneel:countInventory ()
+local function turtle_count_inventory ()
     local total = 0
 
     for slot = 1, rdaneel._constants.slotsNum do
@@ -283,10 +319,10 @@ function rdaneel:countInventory ()
     return total
 end
 
--- selectAndPlaceDown() selects a nonempty slot and places a
--- block from it under the turtle
+-- turtle_select_and_placedown() selects a nonempty slot and
+-- places a block from it under the turtle
 
-function rdaneel:selectAndPlaceDown ( destroy )
+local function turtle_select_and_placedown ( destroy )
     for slot = 1, rdaneel._constants.slotsNum do
         if turtle.getItemCount( slot ) > 0 then
 
@@ -375,14 +411,14 @@ local function sweep_flat ( length, width, sweepCallback )
         local y = roundIdx - 1
 
         for direction, nsteps in pairs( paths ) do
-            local infoTbl = {
+            local ctx_tbl = {
                 round = roundIdx, direction = direction,
                 nthStep = nil, x = nil, y = nil,
             }
             if nsteps == 0 then
                 if sweepCallback then
-                    infoTbl.x = x; infoTbl.y = y; infoTbl.nthStep = 0; infoTbl.done = true
-                    sweepCallback( infoTbl )
+                    ctx_tbl.x = x; ctx_tbl.y = y; ctx_tbl.nthStep = 0; ctx_tbl.done = true
+                    sweepCallback( ctx_tbl )
                 end
                 done = true
                 break
@@ -398,8 +434,8 @@ local function sweep_flat ( length, width, sweepCallback )
                         elseif direction == 4 then
                             x = x - 1
                         end
-                        infoTbl.x = x; infoTbl.y = y; infoTbl.nthStep = n
-                        sweepCallback( infoTbl )
+                        ctx_tbl.x = x; ctx_tbl.y = y; ctx_tbl.nthStep = n
+                        sweepCallback( ctx_tbl )
                     end
                 end
                 turtle.turnRight()
@@ -436,14 +472,14 @@ local function sweep_solid ( args )
     for z = from, to, step do
         local success, err = sweep_flat(
             length, width,
-            function ( info )
-                info.z = z;
+            function ( ctx )
+                ctx.z = z;
                 if f then
                     assert( type( f ) == 'function', 'Callback is required to be a function' ) 
-                    f( info )
+                    f( ctx )
                 end
-                if info.done then
-                    rdaneel:goBackOrigin( info.x, info.y, info.direction )
+                if ctx.done then
+                    rdaneel:goBackOrigin( ctx.x, ctx.y, ctx.direction )
                 end
             end )
 
@@ -459,25 +495,6 @@ local function sweep_solid ( args )
 
     end
     return true
-end
-
---[[ Print contents of `tbl`, with indentation.
-    `indent` sets the initial level of indentation.
-]]
-local function tformat ( tbl, indent )
-    local buffer = ''
-    if not indent then indent = 0 end
-    for k, v in pairs( tbl ) do
-        formatting = string.rep( "  ", indent ) .. k .. ": "
-        if type( v ) == "table" then
-            buffer = buffer
-                .. formatting .. "\n"
-                .. tformat( v, indent + 1 )
-        else
-            buffer = buffer .. formatting .. tostring( v ) .. "\n"
-        end
-    end
-    return buffer
 end
 
 --[[ POSIX style command line argument parser.
@@ -542,7 +559,7 @@ local function draft ( args )
     local logfh, logformat
 
     if args.g then
-        logfh = fs.open( 'rdaneel.log', 'w' )
+        logfh = fs.open( 'rdaneel.draft.log', 'w' )
         logformat = "Round=%d; Dir=%s; nthStep=%d; [X=%d Y=%d Z=%d]; DONE=%s"
     end
 
@@ -550,19 +567,23 @@ local function draft ( args )
     local success, err = sweep_solid {
         length = args.l, width = args.w, height = args.h,
         reversed = true,
-        sweepCallback = function ( info )
+        sweepCallback = function ( ctx )
             local exists, details = turtle.inspectDown()
-            if not exists then details = {} end
+            if exists then
+                details.name = nameid_map( details.name )
+            else
+                details = {}
+            end
 
-            local direction = rdaneel:_idx2Dir( info.direction )
+            local direction = rdaneel:_idx2Dir( ctx.direction )
 
             -- Logging
             if logfh then
                 local log = string.format(
                     logformat, 
-                    info.round, direction, info.nthStep,
-                    info.x, info.y, info.z,
-                    info.done and 'true' or 'false' )
+                    ctx.round, direction, ctx.nthStep,
+                    ctx.x, ctx.y, ctx.z,
+                    ctx.done and 'true' or 'false' )
 
                 logfh.writeLine( log )
 
@@ -571,16 +592,16 @@ local function draft ( args )
             end
             --
             local zTbl
-            if not tree[ info.z ] then zTbl = {}; tree[ info.z ] = zTbl else zTbl = tree[ info.z ] end
+            if not tree[ ctx.z ] then zTbl = {}; tree[ ctx.z ] = zTbl else zTbl = tree[ ctx.z ] end
 
             local roundTbl
-            if not zTbl[ info.round ] then roundTbl = {}; zTbl[ info.round ] = roundTbl else roundTbl = zTbl[ info.round ] end
+            if not zTbl[ ctx.round ] then roundTbl = {}; zTbl[ ctx.round ] = roundTbl else roundTbl = zTbl[ ctx.round ] end
 
             local dirTbl
             if not roundTbl[ direction ] then dirTbl = {}; roundTbl[ direction ] = dirTbl else dirTbl = roundTbl[ direction ] end        
 
             table.insert( dirTbl, #dirTbl + 1,
-                          { x = info.x, y = info.y, block = details, } )
+                          { x = ctx.x, y = ctx.y, block = details, } )
         end
     }; assert( success, err )
 
@@ -590,7 +611,7 @@ local function draft ( args )
     end
 
     if logfh then
-        logfh.writeLine( tformat( tree ) )
+        logfh.writeLine( table.dump( tree ) )
         logfh.close()
     end
 end
@@ -598,13 +619,48 @@ end
 -- craft
 
 local function craft ( args )
+    local logfh
+
+    if args.g then
+        logfh = fs.open( 'rdaneel.craft.log', 'w' )
+    end
+
     local bptbl, err_msg = bpload( args.i )
     assert( bptbl, err_msg )
 
-    local l = bptbl[0][0].rt[3].x + 1
-    -- local w = bptbl[0][0].fd[
+    local rt_steps, fd_steps = bptbl[0][0].rt, bptbl[0][0].fd
+
+    local l = rt_steps[ #rt_steps ].x + 1
+    local w = fd_steps[ #fd_steps ].y + 1
     local h = #bptbl + 1
-    print( l, h )
+
+    sweep_solid {
+        length = l, width = w, height = h,
+        reversed = false,
+        sweepCallback = function ( ctx )
+
+            local x, y, z = ctx.x, ctx.y, ctx.z
+            local r = ctx.round
+            local di = ctx.direction
+            local d = rdaneel:_idx2Dir( di )
+            local n = ctx.nthStep > 0 and ctx.nthStep or 1
+
+            local block = bptbl[z][r][d][n].block
+
+            logfh.writeLine( table.dump( block ) )
+            logfh.writeLine( '*' ); logfh.flush()
+
+            if table.shallow_len( block ) > 0 then
+                if turtle_select_item( block.name ) then
+                    turtle.placeDown()
+                end
+            end
+        end
+    }
+
+    if logfh then
+        logfh.close()
+    end
 end
 
 do
