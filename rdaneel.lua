@@ -19,7 +19,7 @@ local rdaneel = {
 rdaneel._constants = { slotsNum = 16, }
 rdaneel._constants = rdaneel._pri.protect( rdaneel._constants )
 
-function table.find ( arr, pred )
+function table.shallow_find ( arr, pred )
     for _, v in ipairs( arr ) do
         if pred( v ) then return v end
     end
@@ -203,7 +203,7 @@ function rdaneel:turtleGoUp ( times, destroy ) rdaneel:_turtleRepeat( function (
 function rdaneel:turtleGoDown ( times, destroy ) rdaneel:_turtleRepeat( function () turtle.godn( destroy ) end, times ) end
 function rdaneel:turtleGoForward ( times, destroy ) rdaneel:_turtleRepeat( function () turtle.gofd( destroy ) end, times ) end
 
-function rdaneel:goBackOrigin ( x, y, direction )
+function turtle.go_back_origin ( x, y, direction )
     if direction == 1 then rdaneel:turtleTurnRight( 2 ) end
     if direction == 2 then rdaneel:turtleTurnRight()    end
     if direction == 4 then rdaneel:turtleTurnLeft()     end
@@ -214,7 +214,7 @@ function rdaneel:goBackOrigin ( x, y, direction )
     rdaneel:turtleTurnRight()
 end
 
-function rdaneel:_dir2Idx ( direction )
+local function dir2idx ( direction )
     local idx
     if direction and type( direction ) == 'string' then
         if direction == 'fd' then
@@ -230,7 +230,7 @@ function rdaneel:_dir2Idx ( direction )
     return idx
 end
 
-function rdaneel:_idx2Dir ( index )
+local function idx2dir ( index )
     local dir
     if index and type( index ) == 'number' then
         if index == 1 then
@@ -256,17 +256,17 @@ local NAMEID_VARIANTS = {
 
 local function nameid_map ( id )
     for std, variants in pairs( NAMEID_VARIANTS ) do
-        if table.find( variants, function ( v ) return id == v end ) then
+        if table.shallow_find( variants, function ( v ) return id == v end ) then
             return std
         end
     end
     return id
 end
 
--- turtle_select_item() selects the inventory slot with the names
+-- turtle.select_item() selects the inventory slot with the names
 -- item, returns `true` if found and `false` if not
 
-local function turtle_select_item ( name )
+function turtle.select_item ( name )
     local currentSlot = turtle.getItemDetail( turtle.getSelectedSlot() )
 
     if currentSlot and currentSlot.name == name then
@@ -479,7 +479,7 @@ local function sweep_solid ( args )
                     f( ctx )
                 end
                 if ctx.done then
-                    rdaneel:goBackOrigin( ctx.x, ctx.y, ctx.direction )
+                    turtle.go_back_origin( ctx.x, ctx.y, ctx.direction )
                 end
             end )
 
@@ -575,7 +575,7 @@ local function draft ( args )
                 details = {}
             end
 
-            local direction = rdaneel:_idx2Dir( ctx.direction )
+            local direction = idx2dir( ctx.direction )
 
             -- Logging
             if logfh then
@@ -642,7 +642,7 @@ local function craft ( args )
             local x, y, z = ctx.x, ctx.y, ctx.z
             local r = ctx.round
             local di = ctx.direction
-            local d = rdaneel:_idx2Dir( di )
+            local d = idx2dir( di )
             local n = ctx.nthStep > 0 and ctx.nthStep or 1
 
             local block = bptbl[z][r][d][n].block
@@ -651,7 +651,7 @@ local function craft ( args )
             logfh.writeLine( '*' ); logfh.flush()
 
             if table.shallow_len( block ) > 0 then
-                if turtle_select_item( block.name ) then
+                if turtle.select_item( block.name ) then
                     turtle.placeDown()
                 end
             end
