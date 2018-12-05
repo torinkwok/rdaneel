@@ -712,8 +712,9 @@ function turtle.select_item ( arg )
 end
 
 function turtle.select_and_place ( args )
-    local slot = args.slot or turtle.getSelectedSlot()
+    assert( not args.down ~= not args.up, 'Conflict placing direction' )
 
+    local slot = args.slot or turtle.getSelectedSlot()
     if turtle.getItemCount( slot ) == 0 then
         return false, 'Slot ' .. tostring( slot ) .. ' is empty'
     end
@@ -722,16 +723,16 @@ function turtle.select_and_place ( args )
         return false, 'Failed selecting specified slot ' .. tostring( slot )
     end
 
-    local destroy, down = args.destroy, args.down
+    local destroy, down, up = args.destroy, args.down, args.up
 
-    local detect_f = down and turtle.detectDown or turtle.detect
-    local dig_f = down and turtle.digDown or turtle.dig
+    local detect_f = down and turtle.detectDown or ( up and turtle.detectUp or turtle.detect )
+    local dig_f = down and turtle.digDown or ( up and turtle.digUp or turtle.dig )
 
     if detect_f() then
         if destroy then
             dig_f()
         else
-            local inspect_f = down and turtle.inspectDown or turtle.inspect
+            local inspect_f = down and turtle.inspectDown or ( up and turtle.inspectUp or turtle.inspect )
             local exists, details = inspect_f()
             return false, 'Irrelevant block ' .. ( exists and details.name .. ' ' or '' ) .. 'stands in the way'
         end
@@ -740,13 +741,13 @@ function turtle.select_and_place ( args )
     -- If the invoker didn't pass a slot, place_f() will pick
     -- block from current selected slot
 
-    local place_f = down and turtle.placeDown or turtle.place
+    local place_f = down and turtle.placeDown or ( up and turtle.placeUp or turtle.place )
     return place_f()
 end
 
 local function figure_facing ()
 
-    local success, err_msg = turtle.select_and_place { slot = 12, destroy = true, down = true }
+    local success, err_msg = turtle.select_and_place { slot = 12, destroy = true, up = true }
     assert( success, err_msg )
 
     -- local compass_slot = turtle.select_item( G_COMPASS_BLOCKS )
