@@ -263,30 +263,6 @@ local function nameid_map ( id )
     return id
 end
 
--- turtle.select_item() selects the inventory slot with the names
--- item, returns `true` if found and `false` if not
-
-function turtle.select_item ( name )
-    local currentSlot = turtle.getItemDetail( turtle.getSelectedSlot() )
-
-    if currentSlot and currentSlot.name == name then
-        return true
-    end
-
-    -- check all inventory slots
-
-    local item = nil
-
-    for slot = 1, rdaneel._constants.slotsNum do
-        item = turtle.getItemDetail( slot )
-        if item and item.name == name then
-            return turtle.select( slot )
-        end
-    end
-
-    return false -- couldn't find item
-end
-
 -- turtle_select_empty_slot selects inventory slot that is empty,
 -- returns `true` if found, `false` if no empty spaces
 
@@ -663,39 +639,124 @@ local function craft ( args )
     end
 end
 
-do
-    local cli_args = {...}
-    local verb = table.remove( cli_args, 1 )
+local BLOCKS_FACING_SENSITIVE = {
+    'minecraft:torch',
+    'minecraft:redstone_torch',
+    'minecraft:ladder',
+    'minecraft:lever',
+    'minecraft:sticky_piston',
+    'minecraft:piston',
+}
 
-    if verb == 'draft' then
-        local opts = posix_getopt( cli_args, 'lwhog' ) -- TODO: To process -g flag
+local BLOCKS_LOGS = {
+    'minecraft:log',
+    'minecraft:log2',
+    'minecraft:log3',
+    'minecraft:log4',
+}
 
-        assert( opts.h and opts.w and opts.h, "Length [-l], width [-w] and height [-h] must all be specified correctly" )
-        assert( opts.o and #opts.o > 0, "Output file [-o] must be specified correctly" )
-
-        local l, w, h = tonumber( opts.l ), tonumber( opts.w ), tonumber( opts.h )
-        local o = opts.o
-
-        assert( type( l ) == 'number' and type( w ) == 'number' and type( h ) == 'number',
-                "Length, width, and height must all be numbers" )
-
-        draft { l = l,
-                w = w,
-                h = h,
-                o = o,
-                g = true }
-
-    elseif verb == 'craft' then
-        local opts = posix_getopt( cli_args, 'ig' ) -- TODO: To process -g flag
-        assert( opts.i and #opts.i > 0, "Input file [-i] must be specified correctly" )
-
-        local i = opts.i
-        craft { i = i, g = true }
-    else
-        print( "Usages:\n"
-                   .. "\trdaneel draft -l4 -w3 -l3 -o output\n"
-                   .. "\trdaneel craft --i=input -g" )
+function is_table_of_type ( tbl, t )
+    if not ( tbl and t ) then
         return false
     end
+
+    -- If tbl is empty,
+    -- it is considered as a table of any type
+
+    for _, v in ipairs( tbl ) do
+        if type( v ) ~= t then
+            return false
+        end
+    end
+
     return true
 end
+
+function turtle.seek_item ( arg )
+    local names =
+        type( arg ) == 'string' and { arg } or ( type( arg ) == 'table' and arg or nil )
+
+    assert( is_table_of_type( names, 'string' ),
+            'Bad argument: arg must be either a string or a table of string' )
+
+    local curslot = turtle.getSelectedSlot()
+    local curslot_detail = turtle.getItemDetail( curslot )
+
+    for _, name in ipairs( names ) do
+        if curslot_detail and curslot_detail.name == name then
+            return curslot
+        end
+
+        -- check all inventory slots except for current slot
+
+        for slot = 1, rdaneel._constants.slotsNum do
+            if slot ~= curslot then
+                local item = turtle.getItemDetail( slot )
+                if item and item.name == name then
+                    return slot
+                end
+            end
+        end
+    end
+
+    return nil -- couldn't find item
+end
+
+-- turtle.select_item() selects the inventory slot with the names
+-- item, returns the slot index if found and nil if not
+
+function turtle.select_item ( arg )
+    local slot_idx = turtle.seek_item( arg )
+    if slot_idx then
+        return turtle.select( slot_idx ) and slot_idx or nil
+    end
+    return nil
+end
+
+local function figure_facing ()
+
+    local compass_slot = turtle.select_item( BLOCKS_FACING_SENSITIVE )
+    assert( compass_slot, "Cannot obtain a block used for figuring the facing out" )
+
+    -- rdaneel:turtleTurnRight( 2 )
+    -- rdaneel:turtleGoForward( 2 )
+end
+
+figure_facing()
+
+-- do
+--     local cli_args = {...}
+--     local verb = table.remove( cli_args, 1 )
+
+--     if verb == 'draft' then
+--         local opts = posix_getopt( cli_args, 'lwhog' ) -- TODO: To process -g flag
+
+--         assert( opts.h and opts.w and opts.h, "Length [-l], width [-w] and height [-h] must all be specified correctly" )
+--         assert( opts.o and #opts.o > 0, "Output file [-o] must be specified correctly" )
+
+--         local l, w, h = tonumber( opts.l ), tonumber( opts.w ), tonumber( opts.h )
+--         local o = opts.o
+
+--         assert( type( l ) == 'number' and type( w ) == 'number' and type( h ) == 'number',
+--                 "Length, width, and height must all be numbers" )
+
+--         draft { l = l,
+--                 w = w,
+--                 h = h,
+--                 o = o,
+--                 g = true }
+
+--     elseif verb == 'craft' then
+--         local opts = posix_getopt( cli_args, 'ig' ) -- TODO: To process -g flag
+--         assert( opts.i and #opts.i > 0, "Input file [-i] must be specified correctly" )
+
+--         local i = opts.i
+--         craft { i = i, g = true }
+--     else
+--         print( "Usages:\n"
+--                    .. "\trdaneel draft -l4 -w3 -l3 -o output\n"
+--                    .. "\trdaneel craft --i=input -g" )
+--         return false
+--     end
+--     return true
+-- end
