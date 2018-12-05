@@ -263,10 +263,10 @@ local function nameid_map ( id )
     return id
 end
 
--- turtle_select_empty_slot selects inventory slot that is empty,
+-- turtle.select_empty_slot selects inventory slot that is empty,
 -- returns `true` if found, `false` if no empty spaces
 
-local function turtle_select_empty_slot()
+function turtle.select_empty_slot()
     if turtle.getItemCount( turtle.getSelectedSlot() ) == 0 then
         return true
     end
@@ -282,10 +282,10 @@ local function turtle_select_empty_slot()
     return false -- couldn't find empty space
 end
 
--- turtle_count_inventory() returns the total number of items in
+-- turtle.count_inventory() returns the total number of items in
 -- the inventory
 
-local function turtle_count_inventory ()
+function turtle.count_inventory ()
     local total = 0
 
     for slot = 1, rdaneel._constants.slotsNum do
@@ -295,10 +295,10 @@ local function turtle_count_inventory ()
     return total
 end
 
--- turtle_select_and_placedown() selects a nonempty slot and
+-- turtle.select_and_placedown() selects a nonempty slot and
 -- places a block from it under the turtle
 
-local function turtle_select_and_placedown ( destroy )
+function turtle.select_and_placedown ( destroy )
     for slot = 1, rdaneel._constants.slotsNum do
         if turtle.getItemCount( slot ) > 0 then
 
@@ -639,23 +639,21 @@ local function craft ( args )
     end
 end
 
-local BLOCKS_FACING_SENSITIVE = {
+local G_COMPASS_BLOCKS = {
     'minecraft:torch',
     'minecraft:redstone_torch',
     'minecraft:ladder',
     'minecraft:lever',
-    'minecraft:sticky_piston',
-    'minecraft:piston',
 }
 
-local BLOCKS_LOGS = {
+local G_COMPASS_BASE_BLOCKS = {
     'minecraft:log',
     'minecraft:log2',
     'minecraft:log3',
     'minecraft:log4',
 }
 
-function is_table_of_type ( tbl, t )
+local function is_table_of_type ( tbl, t )
     if not ( tbl and t ) then
         return false
     end
@@ -713,10 +711,49 @@ function turtle.select_item ( arg )
     return nil
 end
 
+function turtle.select_and_place ( args )
+    local slot = args.slot or turtle.getSelectedSlot()
+
+    if turtle.getItemCount( slot ) == 0 then
+        return false, 'Slot ' .. tostring( slot ) .. ' is empty'
+    end
+
+    if not turtle.select( slot ) then
+        return false, 'Failed selecting specified slot ' .. tostring( slot )
+    end
+
+    local destroy, down = args.destroy, args.down
+
+    local detect_f = down and turtle.detectDown or turtle.detect
+    local dig_f = down and turtle.digDown or turtle.dig
+
+    if detect_f() then
+        if destroy then
+            dig_f()
+        else
+            local inspect_f = down and turtle.inspectDown or turtle.inspect
+            local exists, details = inspect_f()
+            return false, 'Irrelevant block ' .. ( exists and details.name .. ' ' or '' ) .. 'stands in the way'
+        end
+    end
+
+    -- If the invoker didn't pass a slot, place_f() will pick
+    -- block from current selected slot
+
+    local place_f = down and turtle.placeDown or turtle.place
+    return place_f()
+end
+
 local function figure_facing ()
 
-    local compass_slot = turtle.select_item( BLOCKS_FACING_SENSITIVE )
-    assert( compass_slot, "Cannot obtain a block used for figuring the facing out" )
+    local success, err_msg = turtle.select_and_place { slot = 12, destroy = true, down = true }
+    assert( success, err_msg )
+
+    -- local compass_slot = turtle.select_item( G_COMPASS_BLOCKS )
+    -- assert( compass_slot, "Failed obtaining a block used for figuring the facing out" )
+
+    -- local base_slot = turtle.select_item( G_COMPASS_BASE_BLOCKS )
+    -- assert( base_slot, "Failed obtaining a base block for the compass block" )
 
     -- rdaneel:turtleTurnRight( 2 )
     -- rdaneel:turtleGoForward( 2 )
