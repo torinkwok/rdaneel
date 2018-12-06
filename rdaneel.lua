@@ -752,22 +752,38 @@ function turtle.select_and_place ( args )
     return place_f()
 end
 
-local function figure_facing ()
+local function figure_facing ( keeping )
 
-    local success, err_msg = turtle.select_and_place { slot = 12, destroy = true }
-    assert( success, err_msg )
+    local compass_slot = turtle.select_item( G_COMPASS_BLOCKS )
+    assert( compass_slot, "Failed obtaining a block used for figuring the facing out" )
 
-    -- local compass_slot = turtle.select_item( G_COMPASS_BLOCKS )
-    -- assert( compass_slot, "Failed obtaining a block used for figuring the facing out" )
+    local base_slot = turtle.select_item( G_COMPASS_BASE_BLOCKS )
+    assert( base_slot, "Failed obtaining a base block for the compass block" )
 
-    -- local base_slot = turtle.select_item( G_COMPASS_BASE_BLOCKS )
-    -- assert( base_slot, "Failed obtaining a base block for the compass block" )
+    rdaneel:turtleTurnRight( 2 )
+    rdaneel:turtleGoForward( 1, true )
 
-    -- rdaneel:turtleTurnRight( 2 )
-    -- rdaneel:turtleGoForward( 2 )
+    local success, err_msg = turtle.select_and_place { slot = base_slot, destroy = true }
+    if not success then
+        return nil, err_msg
+    end
+
+    turtle.back()
+    turtle.select_and_place { slot = compass_slot, destroy = true }
+
+    local exists, compass_details = turtle.inspect()
+    assert( exists, 'Compass damaged' )
+
+    if not keeping then
+        rdaneel:turtleGoForward( 1, true ); turtle.dig()
+        turtle.back()
+    end
+    rdaneel:turtleTurnLeft( 2 )
+
+    return compass_details.state.facing
 end
 
-figure_facing()
+print( figure_facing( false ) )
 
 -- do
 --     local cli_args = {...}
