@@ -628,15 +628,13 @@ local function craft ( args )
 
     local dir2fac_lookup = {}
     for i = 1, 4 do
-        dir2fac_lookup[ idx2dir( i ) ] = rotate_facing( facing, i - 1 )
+        dir2fac_lookup[ idx2dir( i ) ] = rotate_facing( turtel_facing, i - 1 )
     end
 
     local fac2dir_lookup = {}
     for k, v in pairs( dir2fac_lookup ) do
         fac2dir_lookup[v] = k
     end
-
-    print( table.dump( fac2dir_lookup ) )
 
     sweep_solid {
         length = l, width = w, height = h,
@@ -649,19 +647,16 @@ local function craft ( args )
             local d = idx2dir( di )
             local n = ctx.nthStep > 0 and ctx.nthStep or 1
 
-            local block = bptbl[z][r][d][n].block
+            local b = bptbl[z][r][d][n].block
+            -- local bfac = b[state][facing]
+            -- print( bfac )
+            -- print( string.format( "BFAC=%s BDIR=%s", bfac, fac2dir_lookup[ bfac ] ) )
 
-            -- local block_facing = block.state.facing
-            -- if facing then
-            --     local install_direction
-                
-            -- end
-
-            logfh.writeLine( table.dump( block ) )
+            logfh.writeLine( table.dump( b ) )
             logfh.writeLine( '*' ); logfh.flush()
 
-            if table.shallow_len( block ) > 0 then
-                if turtle.select_item( block.name ) then
+            if table.shallow_len( b ) > 0 then
+                if turtle.select_item( b.name ) then
                     turtle.placeDown()
                 end
             end
@@ -817,7 +812,7 @@ function turtle.figure_facing ( keeping )
     return compass_details.state.facing
 end
 
-function rotate_facing ( fac, times )
+local function rotate_facing ( fac, times )
     local i = fac2idx( fac )
     for _ = 1, times or 1 do i = i % 4 + 1 end
     return idx2fac( i )
