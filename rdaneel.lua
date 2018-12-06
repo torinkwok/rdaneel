@@ -168,26 +168,9 @@ local function bpload ( sfile )
     return tables[1]
 end
 
-function turtle:goup ( destroy )
-    if self and turtle.detectUp() then
-        turtle.digUp()
-    end
-    turtle.up()
-end
-
-function turtle:godn ( destroy )
-    if self and turtle.detectDown() then
-        turtle.digDown()
-    end
-    turtle.down()
-end
-
-function turtle:gofd ( destroy )
-    if self and turtle.detect() then
-        turtle.dig()
-    end
-    turtle.forward()
-end
+function turtle:goup ( destroy ) if self and turtle.detectUp() then turtle.digUp() end turtle.up() end
+function turtle:godn ( destroy ) if self and turtle.detectDown() then turtle.digDown() end turtle.down() end
+function turtle:gofd ( destroy ) if self and turtle.detect() then turtle.dig() end turtle.forward() end
 
 function rdaneel:_turtleRepeat ( action, times )
     assert( action and type( action ) == 'function', 'action function must be specified' )
@@ -246,6 +229,38 @@ local function idx2dir ( index )
     return dir
 end
 
+local function fac2idx ( facing )
+    local idx
+    if facing and type( facing ) == 'string' then
+        if facing == 'north' then
+            idx = 1
+        elseif facing == 'east' then
+            idx = 2
+        elseif facing == 'south' then
+            idx = 3
+        elseif facing == 'west' then
+            idx = 4
+        end
+    end
+    return idx
+end
+
+local function idx2fac ( index )
+    local fac
+    if index and type( index ) == 'number' then
+        if index == 1 then
+            fac = 'north'
+        elseif index == 2 then
+            fac = 'east'
+        elseif index == 3 then
+            fac = 'south'
+        elseif index == 4 then
+            fac = 'west'
+        end
+    end
+    return fac
+end
+
 local NAMEID_VARIANTS = {
     ['minecraft:redstone'] = { 'minecraft:redstone_wire' },
     ['minecraft:repeater'] = { 'minecraft:powered_repeater', 'minecraft:unpowered_repeater' },
@@ -254,7 +269,7 @@ local NAMEID_VARIANTS = {
     ['minecraft:redstone_lamp'] = { 'minecraft:lit_redstone_lamp' },
 }
 
-local function nameid_map ( id )
+local function nameid_lookup ( id )
     for std, variants in pairs( NAMEID_VARIANTS ) do
         if table.shallow_find( variants, function ( v ) return id == v end ) then
             return std
@@ -546,7 +561,7 @@ local function draft ( args )
         sweepCallback = function ( ctx )
             local exists, details = turtle.inspectDown()
             if exists then
-                details.name = nameid_map( details.name )
+                details.name = nameid_lookup( details.name )
             else
                 details = {}
             end
@@ -596,7 +611,6 @@ end
 
 local function craft ( args )
     local logfh
-
     if args.g then
         logfh = fs.open( 'rdaneel.craft.log', 'w' )
     end
@@ -610,6 +624,20 @@ local function craft ( args )
     local w = fd_steps[ #fd_steps ].y + 1
     local h = #bptbl + 1
 
+    local turtel_facing = turtle.figure_facing()
+
+    local dir2fac_lookup = {}
+    for i = 1, 4 do
+        dir2fac_lookup[ idx2dir( i ) ] = rotate_facing( facing, i - 1 )
+    end
+
+    local fac2dir_lookup = {}
+    for k, v in pairs( dir2fac_lookup ) do
+        fac2dir_lookup[v] = k
+    end
+
+    print( table.dump( fac2dir_lookup ) )
+
     sweep_solid {
         length = l, width = w, height = h,
         reversed = false,
@@ -622,6 +650,12 @@ local function craft ( args )
             local n = ctx.nthStep > 0 and ctx.nthStep or 1
 
             local block = bptbl[z][r][d][n].block
+
+            -- local block_facing = block.state.facing
+            -- if facing then
+            --     local install_direction
+                
+            -- end
 
             logfh.writeLine( table.dump( block ) )
             logfh.writeLine( '*' ); logfh.flush()
@@ -752,7 +786,7 @@ function turtle.select_and_place ( args )
     return place_f()
 end
 
-local function figure_facing ( keeping )
+function turtle.figure_facing ( keeping )
 
     local compass_slot = turtle.select_item( G_COMPASS_BLOCKS )
     assert( compass_slot, "Failed obtaining a block used for figuring the facing out" )
@@ -783,41 +817,45 @@ local function figure_facing ( keeping )
     return compass_details.state.facing
 end
 
-print( figure_facing( false ) )
+function rotate_facing ( fac, times )
+    local i = fac2idx( fac )
+    for _ = 1, times or 1 do i = i % 4 + 1 end
+    return idx2fac( i )
+end
 
--- do
---     local cli_args = {...}
---     local verb = table.remove( cli_args, 1 )
+do
+    local cli_args = {...}
+    local verb = table.remove( cli_args, 1 )
 
---     if verb == 'draft' then
---         local opts = posix_getopt( cli_args, 'lwhog' ) -- TODO: To process -g flag
+    if verb == 'draft' then
+        local opts = posix_getopt( cli_args, 'lwhog' ) -- TODO: To process -g flag
 
---         assert( opts.h and opts.w and opts.h, "Length [-l], width [-w] and height [-h] must all be specified correctly" )
---         assert( opts.o and #opts.o > 0, "Output file [-o] must be specified correctly" )
+        assert( opts.h and opts.w and opts.h, "Length [-l], width [-w] and height [-h] must all be specified correctly" )
+        assert( opts.o and #opts.o > 0, "Output file [-o] must be specified correctly" )
 
---         local l, w, h = tonumber( opts.l ), tonumber( opts.w ), tonumber( opts.h )
---         local o = opts.o
+        local l, w, h = tonumber( opts.l ), tonumber( opts.w ), tonumber( opts.h )
+        local o = opts.o
 
---         assert( type( l ) == 'number' and type( w ) == 'number' and type( h ) == 'number',
---                 "Length, width, and height must all be numbers" )
+        assert( type( l ) == 'number' and type( w ) == 'number' and type( h ) == 'number',
+                "Length, width, and height must all be numbers" )
 
---         draft { l = l,
---                 w = w,
---                 h = h,
---                 o = o,
---                 g = true }
+        draft { l = l,
+                w = w,
+                h = h,
+                o = o,
+                g = true }
 
---     elseif verb == 'craft' then
---         local opts = posix_getopt( cli_args, 'ig' ) -- TODO: To process -g flag
---         assert( opts.i and #opts.i > 0, "Input file [-i] must be specified correctly" )
+    elseif verb == 'craft' then
+        local opts = posix_getopt( cli_args, 'ig' ) -- TODO: To process -g flag
+        assert( opts.i and #opts.i > 0, "Input file [-i] must be specified correctly" )
 
---         local i = opts.i
---         craft { i = i, g = true }
---     else
---         print( "Usages:\n"
---                    .. "\trdaneel draft -l4 -w3 -l3 -o output\n"
---                    .. "\trdaneel craft --i=input -g" )
---         return false
---     end
---     return true
--- end
+        local i = opts.i
+        craft { i = i, g = true }
+    else
+        print( "Usages:\n"
+                   .. "\trdaneel draft -l4 -w3 -l3 -o output\n"
+                   .. "\trdaneel craft --i=input -g" )
+        return false
+    end
+    return true
+end
