@@ -51,7 +51,7 @@ end
 --[[
     ON FAILURE: Returns an error message.
 ]]
-local function bpsave ( tbl, filename )
+function bpsave ( tbl, filename )
     local _exportstring = function ( s )
         return string.format( "%q", s )
     end
@@ -145,7 +145,7 @@ end
     ON SUCCESS: Returns a previously saved blueprint.
     ON FAILURE: Returns as second argument an error message.
 ]]
-local function bpload ( sfile )
+function bpload ( sfile )
     local ftables, err = loadfile( sfile )
     if err then return _, err end
 
@@ -343,18 +343,23 @@ function turtle.select_and_placedown ( destroy )
     return false
 end
 
-local function sweep_flat ( length, width, sweepCallback )
+function num_of_rounds ( length, width )
+    return math.ceil( math.min( length, width ) / 2 )
+end
+
+function turtle.sweep_flat ( length, width, sweepCallback )
 
     local minimum = length * width
     if turtle.getFuelLevel() < minimum then
         return false, 'HAVE NO ENOUGH FUEL'
     end
 
-    local roundIdx = 0 -- Yes, we count the number of rounds from zero
-    while true do
+    -- Yes, we count the number of rounds from zero
+    for ri = 0, num_of_rounds( length, width ) - 1 do
+    
         local paths = nil
 
-        local evenDelta = roundIdx * 2
+        local evenDelta = ri * 2
         local oddDelta = evenDelta + 1
 
         --[[
@@ -392,12 +397,12 @@ local function sweep_flat ( length, width, sweepCallback )
             assert( type( sweepCallback ) == 'function', 'Callback is required to be a function' )
         end
 
-        local x = roundIdx
-        local y = roundIdx - 1
+        local x = ri
+        local y = ri - 1
 
         for direction, nsteps in pairs( paths ) do
             local ctx_tbl = {
-                round = roundIdx, direction = direction,
+                round = ri, direction = direction,
                 nthStep = nil, x = nil, y = nil,
             }
             if nsteps == 0 then
@@ -426,14 +431,14 @@ local function sweep_flat ( length, width, sweepCallback )
                 turtle.turnRight()
             end
         end
-
-        if done then break end
-        roundIdx = roundIdx + 1
+        if done then
+            break
+        end
     end
     return true
 end
 
-local function sweep_solid ( args )
+function turtle.sweep_solid ( args )
 
     local length, width = args.length, args.width
     assert( length and width, 'Length and width must be specified' )
@@ -455,7 +460,7 @@ local function sweep_solid ( args )
     rdaneel:turtleGoUp( from + 1, true )
 
     for z = from, to, step do
-        local success, err = sweep_flat(
+        local success, err = turtle.sweep_flat(
             length, width,
             function ( ctx )
                 ctx.z = z;
@@ -500,7 +505,7 @@ end
     NOTE: POSIX demands the parser ends at the first non option
     this behavior isn't implemented.
 ]]
-local function posix_getopt ( args, options )
+function posix_getopt ( args, options )
     local opts = {}
 
     for k, v in ipairs( args ) do
@@ -540,7 +545,7 @@ end
 
 -- draft
 
-local function draft ( args )
+function draft ( args )
     local logfh, logformat
 
     if args.g then
@@ -549,7 +554,7 @@ local function draft ( args )
     end
 
     local tree = {}
-    local success, err = sweep_solid {
+    local success, err = turtle.sweep_solid {
         length = args.l, width = args.w, height = args.h,
         reversed = true,
         sweepCallback = function ( ctx )
@@ -603,7 +608,7 @@ end
 
 -- craft
 
-local function craft ( args )
+function craft ( args )
     local logfh
     if args.g then
         logfh = fs.open( 'rdaneel.craft.log', 'w' )
@@ -628,7 +633,7 @@ local function craft ( args )
 
     local skipping = {}
 
-    sweep_solid {
+    turtle.sweep_solid {
         length = l, width = w, height = h,
         reversed = false,
         sweepCallback = function ( ctx )
@@ -900,11 +905,13 @@ do
         assert( type( l ) == 'number' and type( w ) == 'number' and type( h ) == 'number',
                 "Length, width, and height must all be numbers" )
 
-        draft { l = l,
-                w = w,
-                h = h,
-                o = o,
-                g = true }
+        -- draft { l = l,
+        --         w = w,
+        --         h = h,
+        --         o = o,
+        --         g = true }
+
+        turtle.sweep_flat( l, w )
 
     elseif verb == 'craft' then
         local opts = posix_getopt( cli_args, 'ig' ) -- TODO: To process -g flag
