@@ -347,7 +347,7 @@ function num_of_rounds ( length, width )
     return math.ceil( math.min( length, width ) / 2 )
 end
 
-function property_of_2dcoordinate ( flat_len, flat_wid, x, y )
+function coordinate_calculus ( flat_len, flat_wid, x, y )
     local h = math.ceil( flat_wid / 2 )
     local v = math.ceil( flat_len / 2 )
 
