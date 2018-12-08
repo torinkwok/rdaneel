@@ -351,12 +351,6 @@ local function sweep_flat ( length, width, sweepCallback )
     end
 
     local roundIdx = 0 -- Yes, we count the number of rounds from zero
-
-    -- Instead of using an infinite loop, I'm waiting for a brief
-    -- but elegant mathematical proof that is able to help us
-    -- figure out in advance how exactly many rounds the turtle
-    -- should move
-
     while true do
         local paths = nil
 
@@ -627,14 +621,12 @@ local function craft ( args )
     local turtel_facing = turtle.figure_facing()
 
     local dir2fac_lookup = {}
-    for i = 1, 4 do
-        dir2fac_lookup[ idx2dir( i ) ] = rotate_facing( turtel_facing, i - 1 )
-    end
+    for i = 1, 4 do dir2fac_lookup[ idx2dir( i ) ] = turtle.rotate_facing( turtel_facing, i - 1 ) end
 
     local fac2dir_lookup = {}
-    for k, v in pairs( dir2fac_lookup ) do
-        fac2dir_lookup[v] = k
-    end
+    for k, v in pairs( dir2fac_lookup ) do fac2dir_lookup[v] = k end
+
+    local skipping = {}
 
     sweep_solid {
         length = l, width = w, height = h,
@@ -642,22 +634,96 @@ local function craft ( args )
         sweepCallback = function ( ctx )
 
             local x, y, z = ctx.x, ctx.y, ctx.z
+
+            if table.shallow_find( skipping, function ( v ) return v[1] == x and v[2] == y and v[3] == z end ) then
+                return
+            end
+
             local r = ctx.round
             local di = ctx.direction
             local d = idx2dir( di )
             local n = ctx.nthStep > 0 and ctx.nthStep or 1
 
             local b = bptbl[z][r][d][n].block
-            -- local bfac = b[state][facing]
-            -- print( bfac )
-            -- print( string.format( "BFAC=%s BDIR=%s", bfac, fac2dir_lookup[ bfac ] ) )
 
-            logfh.writeLine( table.dump( b ) )
-            logfh.writeLine( '*' ); logfh.flush()
+            if table.shallow_len( b ) > 0 then -- if the block is not empty
+                local place_f = turtle.placeDown
+                local bfac = b.state.facing
+                local bdir = fac2dir_lookup[ bfac ]
 
-            if table.shallow_len( b ) > 0 then
+                if bfac and bfac ~= 'up' and bfac ~= 'down' then
+                    if d == bdir then
+                        place_f = function ()
+                            rdaneel:turtleGoForward( 1, true )
+                            rdaneel:turtleTurnRight( 2 )
+                            rdaneel:turtleGoDown( 1, true )
+
+                            turtle.place()
+
+                            rdaneel:turtleGoUp( 1, true )
+                            rdaneel:turtleGoForward( 1, true )
+                            rdaneel:turtleTurnRight( 2 )
+                        end
+
+                    elseif ( d == 'fd' and bdir == 'lt' )
+                        or ( d == 'bk' and bdir == 'rt' )
+                        or ( d == 'rt' and bdir == 'fd' )
+                        or ( d == 'lt' and bdir == 'bk' )
+                    then
+                        logfh.writeLine(
+                            string.format( "[%d %d %d] BID=%s BFAC=%s BDIR=%s CUR_DIR=%s",
+                                           x, y, z, b.name, bfac, bdir, d ) )
+                        logfh.flush()
+
+                        local base_block_r
+                        if bdir == 'fd' or bdir == 'bk' then
+                            base_block_r = r
+                        elseif bdir == 'lt' or bdir == 'rt' then
+                            base_block_r = base_block_r + 1
+                        end
+
+                        local base_block_x, base_block_y = x, y
+
+                        if bdir == 'fd' then
+                            base_block_y = y - 1
+                        elseif bdir == 'bk' then
+                            base_block_y = y + 1
+                        elseif bdir == 'lt' then
+                            base_block_y = x + 1
+                        elseif bdir == 'rt' then
+                            base_block_y = x - 1
+                        end
+
+                        -- local base_block = bptbl[z][base_block_r][d][n].block
+
+                    elseif ( d == 'fd' and bdir == 'rt' )
+                        or ( d == 'bk' and bdir == 'lt' )
+                        or ( d == 'rt' and bdir == 'bk' )
+                        or ( d == 'lt' and bdir == 'fd' )
+                    then
+                        place_f = function ()
+                            rdaneel:turtleTurnRight( 1 )
+                            rdaneel:turtleGoForward( 1, true )
+                            rdaneel:turtleTurnRight( 2 )
+
+                            local destroyed, destroyed_block = turtle.inspectDown()
+                            rdaneel:turtleGoDown( 1, true )
+                            turtle.place()
+
+                            rdaneel:turtleGoUp( 1, true )
+                            if destroyed then
+                                if turtle.select_item( nameid_lookup( destroyed_block.name ) ) then
+                                    turtle.placeDown()
+                                end
+                            end
+
+                            rdaneel:turtleGoForward( 1, true )
+                            rdaneel:turtleTurnRight( 1 )
+                        end
+                    end
+                end
                 if turtle.select_item( b.name ) then
-                    turtle.placeDown()
+                    place_f()
                 end
             end
         end
@@ -812,7 +878,7 @@ function turtle.figure_facing ( keeping )
     return compass_details.state.facing
 end
 
-local function rotate_facing ( fac, times )
+function turtle.rotate_facing ( fac, times )
     local i = fac2idx( fac )
     for _ = 1, times or 1 do i = i % 4 + 1 end
     return idx2fac( i )
