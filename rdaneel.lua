@@ -359,28 +359,29 @@ function coordinate_calculus ( flat_len, flat_wid, x, y )
 
     local d, n
     local delta = r - 1
+    local tp = 1 -- number of block occupied by a turning point
 
     if x == delta and y <= maxy - delta then
         d = 'fd'
-        n = y + 1 - delta
-    elseif x == maxx - delta and y <= maxy - delta - 1 then
+        n = ( y + 1 ) - delta
+    elseif x == maxx - delta and y <= maxy - ( delta + tp ) then
         d = 'bk'
-        n = maxy - y - delta
-    elseif x >= delta + 1 then
+        n = ( maxy - y + 1 ) - ( delta + tp )
+    elseif x >= delta + tp then
         if x <= maxx - delta and y == maxy - delta then
             d = 'rt'
-            n = x + 1 - delta
+            n = x + 1 - ( delta + tp )
         elseif x <= maxx - delta - 1 and y == delta then
             d = 'lt'
-            n = maxx - x - delta
+            n = ( maxx - x + 1 ) - ( delta + tp )
         end
     end
 
     return { round = r, direction = d, nth_step = n }
 end
 
-local prop = property_of_2dcoordinate( 11, 1, 10, 0 )
-print( prop.round, prop.direction )
+-- local result = coordinate_calculus( 11, 11, 10, 6 )
+-- print( result.round, result.direction, result.nth_step )
 
 function turtle.sweep_flat ( length, width, sweepCallback )
 
@@ -924,41 +925,41 @@ function turtle.rotate_facing ( fac, times )
     return idx2fac( i )
 end
 
--- do
---     local cli_args = {...}
---     local verb = table.remove( cli_args, 1 )
+do
+    local cli_args = {...}
+    local verb = table.remove( cli_args, 1 )
 
---     if verb == 'draft' then
---         local opts = posix_getopt( cli_args, 'lwhog' ) -- TODO: To process -g flag
+    if verb == 'draft' then
+        local opts = posix_getopt( cli_args, 'lwhog' ) -- TODO: To process -g flag
 
---         assert( opts.h and opts.w and opts.h, "Length [-l], width [-w] and height [-h] must all be specified correctly" )
---         assert( opts.o and #opts.o > 0, "Output file [-o] must be specified correctly" )
+        assert( opts.h and opts.w and opts.h, "Length [-l], width [-w] and height [-h] must all be specified correctly" )
+        assert( opts.o and #opts.o > 0, "Output file [-o] must be specified correctly" )
 
---         local l, w, h = tonumber( opts.l ), tonumber( opts.w ), tonumber( opts.h )
---         local o = opts.o
+        local l, w, h = tonumber( opts.l ), tonumber( opts.w ), tonumber( opts.h )
+        local o = opts.o
 
---         assert( type( l ) == 'number' and type( w ) == 'number' and type( h ) == 'number',
---                 "Length, width, and height must all be numbers" )
+        assert( type( l ) == 'number' and type( w ) == 'number' and type( h ) == 'number',
+                "Length, width, and height must all be numbers" )
 
---         draft { l = l,
---                 w = w,
---                 h = h,
---                 o = o,
---                 g = true }
+        draft { l = l,
+                w = w,
+                h = h,
+                o = o,
+                g = true }
 
---         -- turtle.sweep_flat( l, w )
+        -- turtle.sweep_flat( l, w )
 
---     elseif verb == 'craft' then
---         local opts = posix_getopt( cli_args, 'ig' ) -- TODO: To process -g flag
---         assert( opts.i and #opts.i > 0, "Input file [-i] must be specified correctly" )
+    elseif verb == 'craft' then
+        local opts = posix_getopt( cli_args, 'ig' ) -- TODO: To process -g flag
+        assert( opts.i and #opts.i > 0, "Input file [-i] must be specified correctly" )
 
---         local i = opts.i
---         craft { i = i, g = true }
---     else
---         print( "Usages:\n"
---                    .. "\trdaneel draft -l4 -w3 -l3 -o output\n"
---                    .. "\trdaneel craft --i=input -g" )
---         return false
---     end
---     return true
--- end
+        local i = opts.i
+        craft { i = i, g = true }
+    else
+        print( "Usages:\n"
+                   .. "\trdaneel draft -l4 -w3 -l3 -o output\n"
+                   .. "\trdaneel craft --i=input -g" )
+        return false
+    end
+    return true
+end
