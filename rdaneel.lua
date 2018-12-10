@@ -694,11 +694,6 @@ function type_of_intersection ( dparams )
 end
 
 function craft ( args )
-    local logfh
-    if args.g then
-        logfh = fs.open( 'rdaneel.craft.log', 'w' )
-    end
-
     local bptbl, err_msg = bpload( args.i )
     assert( bptbl, err_msg )
 
@@ -722,7 +717,7 @@ function craft ( args )
         length = l, width = w, height = h,
         reversed = false,
         sweepCallback = function ( ctx )
-
+            if ctx.nthStep == 0 then return end
             local x, y, z = ctx.x, ctx.y, ctx.z
 
             if table.shallow_find(
@@ -735,20 +730,25 @@ function craft ( args )
             local r = ctx.round
             local di = ctx.direction
             local d = idx2dir( di )
-            local n = ctx.nthStep > 0 and ctx.nthStep or 1
+            local n = ctx.nthStep
 
             local b = bptbl[z][r][d][n].block
             if table.shallow_len( b ) == 0 then -- if the block is not empty
                 return
             end
 
-            local place_f = turtle.placeDown
+            local place_f = function () 
+                return turtle.select_and_place { slot = s, down = true, destroy = true, }
+            end
+
             local bfac = b.state.facing
             local bdir = fac2dir_lookup[ bfac ]
 
             if bfac and bdir and not ( bfac == 'up' or bfac == 'down' ) then
                 local is_attachable = table.shallow_find( G_ATTACHABLE_BLOCKS, function ( v ) return v == b.name end )
                 local t = type_of_intersection { td = d, bd = bdir }
+
+                print( "T: ", t )
 
                 if t == 1 then
                     place_f = function ()
@@ -765,43 +765,7 @@ function craft ( args )
                         return true
                     end
 
-                elseif is_attachable and t == 2 then
-                    place_f = function ()
-                        local base_block_x, base_block_y = x, y
-
-                        if bdir == 'fd' then
-                            base_block_y = y - 1
-                        elseif bdir == 'bk' then
-                            base_block_y = y + 1
-                        elseif bdir == 'lt' then
-                            base_block_x = x + 1
-                        elseif bdir == 'rt' then
-                            base_block_x = x - 1
-                        end
-
-                        local res = coordinate_calculus( l, w, base_block_x, base_block_y )
-                        local base_block = bptbl[z][res.round][res.direction][res.nth_step].block                        
-
-                        rdaneel:turtleGoForward( 1, true )
-
-                        local slot = turtle.seek_item( base_block.name )
-                        assert( slot, "Failed finding out " .. base_block.name )
-                        turtle.select_and_place { slot = slot, down = true, destroy = true }
-                        table.insert( preinstalled_blocks, { base_block_x, base_block_y, z } )
-
-                        turtle.select_item( b.name )
-
-                        rdaneel:turtleTurnRight( 2 )
-                        rdaneel:turtleGoForward( 2, true )
-                        rdaneel:turtleTurnRight( 2 )
-
-                        BOILERPLATE()
-
-                        rdaneel:turtleGoForward( 1, true )
-                        return true
-                    end
-
-                elseif is_attachable and t == 3 then
+                elseif is_attachable and ( t == 2 or t == 3 ) then
                     place_f = function ()
                         local base_block_x, base_block_y = x, y
 
@@ -818,15 +782,24 @@ function craft ( args )
                         local res = coordinate_calculus( l, w, base_block_x, base_block_y )
                         local base_block = bptbl[z][res.round][res.direction][res.nth_step].block
 
-                        rdaneel:turtleTurnRight( 1 )
+                        if t == 3 then
+                            rdaneel:turtleTurnRight( 1 )
+                        end
+
                         rdaneel:turtleGoForward( 1, true )
 
-                        local slot = turtle.seek_item( base_block.name )
-                        assert( slot, "Failed finding out " .. base_block.name )
-                        turtle.select_and_place { slot = slot, down = true, destroy = true }
+                        local s = turtle.seek_item( base_block.name )
+                        assert( s, "Failed seeking " .. base_block.name )
+
+                        local success, err_msg = turtle.select_and_place { slot = s, down = true, destroy = true }
+                        if not success then
+                            error( err_msg )
+                        end
+
+                        -- bookkeeping base block
                         table.insert( preinstalled_blocks, { base_block_x, base_block_y, z } )
 
-                        turtle.select_item( b.name )
+                        assert( turtle.select_item( b.name ), "Failed picking " .. b.name )
 
                         rdaneel:turtleTurnRight( 2 )
                         rdaneel:turtleGoForward( 2, true )
@@ -835,17 +808,10 @@ function craft ( args )
                         BOILERPLATE()
 
                         rdaneel:turtleGoForward( 1, true )
-                        rdaneel:turtleTurnLeft( 1 )
+                        if t == 3 then
+                            rdaneel:turtleTurnLeft( 1 )
+                        end
 
-                        logfh.writeLine( table.dump( res ) )
-                        logfh.writeLine( table.dump( base_block ) )
-                        logfh.writeLine(
-                            string.format( "[%d %d %d] BID=%s BFAC=%s BDIR=%s CUR_DIR=%s\n"
-                                               .. "[%d %d] BASE_ID=%s\n"
-                                               .. "\n---\n",
-                                           x, y, z, b.name, bfac, bdir, d,
-                                           base_block_x, base_block_y, base_block.name ) );
-                        logfh.flush()
                         return true
                     end
 
@@ -865,14 +831,10 @@ function craft ( args )
                 end
             end
             if turtle.select_item( b.name ) then
-                place_f()
+                assert( place_f() )
             end
         end
     }
-
-    if logfh then
-        logfh.close()
-    end
 end
 
 local G_COMPASS_BLOCKS = {
