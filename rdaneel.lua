@@ -355,10 +355,9 @@ function coordinate_calculus ( flat_len, flat_wid, x, y )
 
     local r = math.min( x >= v and v - ( x - ( maxx - v ) ) or x,
                         y >= h and h - ( y - ( maxy - h ) ) or y )
-        + 1
 
     local d, n
-    local delta = r - 1
+    local delta = r
     local tp = 1 -- number of block occupied by a turning point
 
     if x == delta and y <= maxy - delta then
@@ -676,7 +675,10 @@ function craft ( args )
 
             local x, y, z = ctx.x, ctx.y, ctx.z
 
-            if table.shallow_find( skipping, function ( v ) return v[1] == x and v[2] == y and v[3] == z end ) then
+            if table.shallow_find(
+                skipping,
+                function ( v ) return v[1] == x and v[2] == y and v[3] == z end )
+            then
                 return
             end
 
@@ -692,7 +694,12 @@ function craft ( args )
                 local bfac = b.state.facing
                 local bdir = fac2dir_lookup[ bfac ]
 
-                if bfac and bfac ~= 'up' and bfac ~= 'down' then
+                local is_attachable =
+                    b.name == 'minecraft:redstone_torch'
+                    or b.name == 'minecraft:torch'
+                    or b.name == 'minecraft:lever'
+
+                if bfac and not ( bfac == 'up' or bfac == 'down' ) then
                     if d == bdir then
                         place_f = function ()
                             rdaneel:turtleGoForward( 1, true )
@@ -706,23 +713,12 @@ function craft ( args )
                             rdaneel:turtleTurnRight( 2 )
                         end
 
-                    elseif ( d == 'fd' and bdir == 'lt' )
-                        or ( d == 'bk' and bdir == 'rt' )
-                        or ( d == 'rt' and bdir == 'fd' )
-                        or ( d == 'lt' and bdir == 'bk' )
+                    elseif is_attachable
+                        and ( ( d == 'fd' and bdir == 'lt' )
+                                or ( d == 'bk' and bdir == 'rt' )
+                                or ( d == 'rt' and bdir == 'fd' )
+                                or ( d == 'lt' and bdir == 'bk' ) )
                     then
-                        logfh.writeLine(
-                            string.format( "[%d %d %d] BID=%s BFAC=%s BDIR=%s CUR_DIR=%s",
-                                           x, y, z, b.name, bfac, bdir, d ) )
-                        logfh.flush()
-
-                        local base_block_r
-                        if bdir == 'fd' or bdir == 'bk' then
-                            base_block_r = r
-                        elseif bdir == 'lt' or bdir == 'rt' then
-                            base_block_r = base_block_r + 1
-                        end
-
                         local base_block_x, base_block_y = x, y
 
                         if bdir == 'fd' then
@@ -730,17 +726,29 @@ function craft ( args )
                         elseif bdir == 'bk' then
                             base_block_y = y + 1
                         elseif bdir == 'lt' then
-                            base_block_y = x + 1
+                            base_block_x = x + 1
                         elseif bdir == 'rt' then
-                            base_block_y = x - 1
+                            base_block_x = x - 1
                         end
 
-                        -- local base_block = bptbl[z][base_block_r][d][n].block
+                        local res = coordinate_calculus( l, w, base_block_x, base_block_y )
+                        local base_block = bptbl[z][res.round][res.direction][res.nth_step].block
 
-                    elseif ( d == 'fd' and bdir == 'rt' )
-                        or ( d == 'bk' and bdir == 'lt' )
-                        or ( d == 'rt' and bdir == 'bk' )
-                        or ( d == 'lt' and bdir == 'fd' )
+                        logfh.writeLine( table.dump( res ) )
+                        logfh.writeLine( table.dump( base_block ) )
+                        logfh.writeLine(
+                            string.format( "[%d %d %d] BID=%s BFAC=%s BDIR=%s CUR_DIR=%s\n"
+                                           .. "[%d %d] BASE_ID=%s\n"
+                                           .. "\n---\n",
+                                           x, y, z, b.name, bfac, bdir, d,
+                                           base_block_x, base_block_y, base_block.name ) );
+                        logfh.flush()
+
+                    elseif is_attachable
+                        and ( ( d == 'fd' and bdir == 'rt' )
+                                or ( d == 'bk' and bdir == 'lt' )
+                                or ( d == 'rt' and bdir == 'bk' )
+                                or ( d == 'lt' and bdir == 'fd' ) )
                     then
                         place_f = function ()
                             rdaneel:turtleTurnRight( 1 )
