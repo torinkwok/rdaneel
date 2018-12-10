@@ -197,6 +197,12 @@ function turtle.go_back_origin ( x, y, direction )
     rdaneel:turtleTurnRight()
 end
 
+local G_ATTACHABLE_BLOCKS = {
+    'minecraft:redstone_torch',
+    'minecraft:torch',
+    'minecraft:lever'
+}
+
 local G_DIRECTIONS = { 'fd', 'rt', 'bk', 'lt' }
 
 local function dir2idx ( direction )
@@ -740,12 +746,8 @@ function craft ( args )
             local bfac = b.state.facing
             local bdir = fac2dir_lookup[ bfac ]
 
-            if bfac and not ( bfac == 'up' or bfac == 'down' ) then
-                local is_attachable =
-                    b.name == 'minecraft:redstone_torch'
-                    or b.name == 'minecraft:torch'
-                    or b.name == 'minecraft:lever'
-
+            if bfac and bdir and not ( bfac == 'up' or bfac == 'down' ) then
+                local is_attachable = table.shallow_find( G_ATTACHABLE_BLOCKS, function ( v ) return v == b.name end )
                 local t = type_of_intersection { td = d, bd = bdir }
 
                 if t == 1 then
