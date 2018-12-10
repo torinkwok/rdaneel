@@ -318,39 +318,6 @@ function turtle.count_inventory ()
     return total
 end
 
--- turtle.select_and_placedown() selects a nonempty slot and
--- places a block from it under the turtle
-
-function turtle.select_and_placedown ( destroy )
-    for slot = 1, rdaneel._constants.slotsNum do
-        if turtle.getItemCount( slot ) > 0 then
-
-            turtle.select( slot )
-
-            local needToPlace = true
-            local exists, details = turtle.inspectDown()
-
-            if exists and destroy then
-                if details.name == turtle.getItemDetail( turtle.getSelectedSlot() ).name then
-                    needToPlace = false
-                else
-                    turtle.digDown()
-                end
-            elseif exists and not destroy then
-                needToPlace = false
-            end
-
-            if needToPlace then
-                turtle.placeDown()
-            end
-
-            return true
-        end
-    end
-
-    return false
-end
-
 function num_of_rounds ( length, width )
     return math.ceil( math.min( length, width ) / 2 )
 end
