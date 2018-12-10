@@ -26,6 +26,13 @@ function table.shallow_find ( arr, pred )
     return nil
 end
 
+function table.shallow_exists( arr, elm )
+    return table.shallow_find(
+        arr,
+        function ( v ) return v == elm end
+    ) and true or false
+end
+
 function table.shallow_len ( tbl )
     local count = 0
     for _ in pairs( tbl ) do count = count + 1 end
@@ -78,7 +85,7 @@ function bpsave ( tbl, filename )
 
             local stype = type( v )
 
-            -- only handle value
+            -- only handling value
             if stype == "table" then
                 if not lookup[v] then
                     table.insert( tables, v )
@@ -101,7 +108,7 @@ function bpsave ( tbl, filename )
                 local str = ''
                 local stype = type( i )
 
-                -- handle index
+                -- handling index
                 if stype == "table" then
                     if not lookup[i] then
                         table.insert( tables, i )
@@ -118,7 +125,7 @@ function bpsave ( tbl, filename )
                 
                 if str ~= '' then
                     stype = type( v )
-                    -- handle value
+                    -- handling value
                     if stype == "table" then
                         if not lookup[v] then
                             table.insert( tables, v )
@@ -137,6 +144,7 @@ function bpsave ( tbl, filename )
         end
         fh:write( '},' .. ce )
     end
+
     fh:write( '}' )
     fh:close()
 end
@@ -279,7 +287,7 @@ local NAMEID_VARIANTS = {
 
 local function nameid_lookup ( id )
     for std, variants in pairs( NAMEID_VARIANTS ) do
-        if table.shallow_find( variants, function ( v ) return id == v end ) then
+        if table.shallow_exists( variants, id ) then
             return std
         end
     end
@@ -353,9 +361,6 @@ function coordinate_calculus ( flat_len, flat_wid, x, y )
 
     return { round = r, direction = d, nth_step = n }
 end
-
--- local result = coordinate_calculus( 11, 11, 10, 6 )
--- print( result.round, result.direction, result.nth_step )
 
 function turtle.sweep_flat ( length, width, sweepCallback )
 
@@ -636,9 +641,9 @@ function type_of_intersection ( dparams )
     local td, bd = dparams.td, dparams.bd -- turtle direction vs. block direction
 
     assert( td and bd
-            and table.shallow_find( G_DIRECTIONS, function ( v ) return v == td end )
-            and table.shallow_find( G_DIRECTIONS, function ( v ) return v == bd end ),
-            "Bad arguments" )
+                and table.shallow_exists( G_DIRECTIONS, td )
+                and table.shallow_exists( G_DIRECTIONS, bd )
+            , "Bad arguments" )
 
     if td == bd then
         return 1
@@ -712,10 +717,8 @@ function craft ( args )
             local bdir = fac2dir_lookup[ bfac ]
 
             if bfac and bdir and not ( bfac == 'up' or bfac == 'down' ) then
-                local is_attachable = table.shallow_find( G_ATTACHABLE_BLOCKS, function ( v ) return v == b.name end )
+                local is_attachable = table.shallow_exists( G_ATTACHABLE_BLOCKS, b.name )
                 local t = type_of_intersection { td = d, bd = bdir }
-
-                print( "T: ", t )
 
                 if t == 1 then
                     place_f = function ()
