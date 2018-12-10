@@ -734,6 +734,34 @@ function craft ( args )
                         local res = coordinate_calculus( l, w, base_block_x, base_block_y )
                         local base_block = bptbl[z][res.round][res.direction][res.nth_step].block
 
+                        rdaneel:turtleTurnRight( 1 )
+                        rdaneel:turtleGoForward( 1 )
+
+                        local slot = turtle.seek_item( base_block.name )
+                        assert( slot, "Failed finding out " .. base_block.name )
+                        turtle.select_and_place { slot = slot, down = true, destroy = true }
+
+                        turtle.select_item( b.name )
+
+                        rdaneel:turtleTurnRight( 2 )
+                        rdaneel:turtleGoForward( 2, true )
+                        rdaneel:turtleTurnRight( 2 )
+
+                        --- Boilerplate Code
+                        local destroyed, destroyed_block = turtle.inspectDown()
+                        rdaneel:turtleGoDown( 1, true )
+                        turtle.place()
+
+                        rdaneel:turtleGoUp( 1, true )
+                        if destroyed then
+                            if turtle.select_item( nameid_lookup( destroyed_block.name ) ) then
+                                turtle.placeDown()
+                            end
+                        end
+
+                        rdaneel:turtleGoForward( 1, true )
+                        rdaneel:turtleTurnLeft( 1 )
+                        ---
                         logfh.writeLine( table.dump( res ) )
                         logfh.writeLine( table.dump( base_block ) )
                         logfh.writeLine(
@@ -755,6 +783,7 @@ function craft ( args )
                             rdaneel:turtleGoForward( 1, true )
                             rdaneel:turtleTurnRight( 2 )
 
+                            --- Boilerplate Code
                             local destroyed, destroyed_block = turtle.inspectDown()
                             rdaneel:turtleGoDown( 1, true )
                             turtle.place()
@@ -768,6 +797,7 @@ function craft ( args )
 
                             rdaneel:turtleGoForward( 1, true )
                             rdaneel:turtleTurnRight( 1 )
+                            ---
                         end
                     end
                 end
