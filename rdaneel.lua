@@ -197,6 +197,8 @@ function turtle.go_back_origin ( x, y, direction )
     rdaneel:turtleTurnRight()
 end
 
+local G_DIRECTIONS = { 'fd', 'rt', 'bk', 'lt' }
+
 local function dir2idx ( direction )
     local idx
     if direction and type( direction ) == 'string' then
@@ -643,6 +645,48 @@ end
 
 -- craft
 
+function BOILERPLATE ()
+    local destroyed, destroyed_block = turtle.inspectDown()
+
+    rdaneel:turtleGoDown( 1, true )
+    turtle.place()
+    rdaneel:turtleGoUp( 1, true )
+
+    if destroyed then
+        if turtle.select_item( nameid_lookup( destroyed_block.name ) ) then
+            turtle.placeDown()
+        end
+    end
+end
+
+function type_of_intersection ( dparams )
+    local td, bd = dparams.td, dparams.bd -- turtle direction vs. block direction
+
+    assert( td and bd
+            and table.shallow_find( G_DIRECTIONS, function ( v ) return v == td end )
+            and table.shallow_find( G_DIRECTIONS, function ( v ) return v == bd end ),
+            "Bad arguments" )
+
+    if td == bd then
+        return 1
+
+    elseif ( td == 'fd' and bd == 'bk' ) or ( td == 'bk' and bd == 'fd' )
+        or ( td == 'lt' and bd == 'rt' ) or ( td == 'rt' and bd == 'lt' )
+    then
+        return 2
+
+    elseif ( td == 'fd' and bd == 'lt' ) or ( td == 'bk' and bd == 'rt' )
+        or ( td == 'rt' and bd == 'fd' ) or ( td == 'lt' and bd == 'bk' )
+    then
+        return 3
+
+    elseif ( td == 'fd' and bd == 'rt' ) or ( td == 'bk' and bd == 'lt' )
+        or ( td == 'rt' and bd == 'bk' ) or ( td == 'lt' and bd == 'fd' )
+    then
+        return 4
+    end
+end
+
 function craft ( args )
     local logfh
     if args.g then
@@ -666,7 +710,7 @@ function craft ( args )
     local fac2dir_lookup = {}
     for k, v in pairs( dir2fac_lookup ) do fac2dir_lookup[v] = k end
 
-    local skipping = {}
+    local preinstalled_blocks = {}
 
     turtle.sweep_solid {
         length = l, width = w, height = h,
@@ -676,7 +720,7 @@ function craft ( args )
             local x, y, z = ctx.x, ctx.y, ctx.z
 
             if table.shallow_find(
-                skipping,
+                preinstalled_blocks,
                 function ( v ) return v[1] == x and v[2] == y and v[3] == z end )
             then
                 return
@@ -688,37 +732,39 @@ function craft ( args )
             local n = ctx.nthStep > 0 and ctx.nthStep or 1
 
             local b = bptbl[z][r][d][n].block
+            if table.shallow_len( b ) == 0 then -- if the block is not empty
+                return
+            end
 
-            if table.shallow_len( b ) > 0 then -- if the block is not empty
-                local place_f = turtle.placeDown
-                local bfac = b.state.facing
-                local bdir = fac2dir_lookup[ bfac ]
+            local place_f = turtle.placeDown
+            local bfac = b.state.facing
+            local bdir = fac2dir_lookup[ bfac ]
 
+            if bfac and not ( bfac == 'up' or bfac == 'down' ) then
                 local is_attachable =
                     b.name == 'minecraft:redstone_torch'
                     or b.name == 'minecraft:torch'
                     or b.name == 'minecraft:lever'
 
-                if bfac and not ( bfac == 'up' or bfac == 'down' ) then
-                    if d == bdir then
-                        place_f = function ()
-                            rdaneel:turtleGoForward( 1, true )
-                            rdaneel:turtleTurnRight( 2 )
-                            rdaneel:turtleGoDown( 1, true )
+                local t = type_of_intersection { td = d, bd = bdir }
 
-                            turtle.place()
+                if t == 1 then
+                    place_f = function ()
+                        rdaneel:turtleGoForward( 1, true )
+                        rdaneel:turtleTurnRight( 2 )
+                        rdaneel:turtleGoDown( 1, true )
 
-                            rdaneel:turtleGoUp( 1, true )
-                            rdaneel:turtleGoForward( 1, true )
-                            rdaneel:turtleTurnRight( 2 )
-                        end
+                        turtle.place()
 
-                    elseif is_attachable
-                        and ( ( d == 'fd' and bdir == 'bk' )
-                            or ( d == 'bk' and bdir == 'fd' )
-                            or ( d == 'lt' and bdir == 'rt' )
-                            or ( d == 'rt' and bdir == 'lt' ) )
-                    then
+                        rdaneel:turtleGoUp( 1, true )
+                        rdaneel:turtleGoForward( 1, true )
+                        rdaneel:turtleTurnRight( 2 )
+
+                        return true
+                    end
+
+                elseif is_attachable and t == 2 then
+                    place_f = function ()
                         local base_block_x, base_block_y = x, y
 
                         if bdir == 'fd' then
@@ -739,6 +785,7 @@ function craft ( args )
                         local slot = turtle.seek_item( base_block.name )
                         assert( slot, "Failed finding out " .. base_block.name )
                         turtle.select_and_place { slot = slot, down = true, destroy = true }
+                        table.insert( preinstalled_blocks, { base_block_x, base_block_y, z } )
 
                         turtle.select_item( b.name )
 
@@ -746,27 +793,14 @@ function craft ( args )
                         rdaneel:turtleGoForward( 2, true )
                         rdaneel:turtleTurnRight( 2 )
 
-                        --- Boilerplate Code
-                        local destroyed, destroyed_block = turtle.inspectDown()
-                        rdaneel:turtleGoDown( 1, true )
-                        turtle.place()
-
-                        rdaneel:turtleGoUp( 1, true )
-                        if destroyed then
-                            if turtle.select_item( nameid_lookup( destroyed_block.name ) ) then
-                                turtle.placeDown()
-                            end
-                        end
-                        ---
+                        BOILERPLATE()
 
                         rdaneel:turtleGoForward( 1, true )
+                        return true
+                    end
 
-                    elseif is_attachable
-                        and ( ( d == 'fd' and bdir == 'lt' )
-                                or ( d == 'bk' and bdir == 'rt' )
-                                or ( d == 'rt' and bdir == 'fd' )
-                                or ( d == 'lt' and bdir == 'bk' ) )
-                    then
+                elseif is_attachable and t == 3 then
+                    place_f = function ()
                         local base_block_x, base_block_y = x, y
 
                         if bdir == 'fd' then
@@ -788,6 +822,7 @@ function craft ( args )
                         local slot = turtle.seek_item( base_block.name )
                         assert( slot, "Failed finding out " .. base_block.name )
                         turtle.select_and_place { slot = slot, down = true, destroy = true }
+                        table.insert( preinstalled_blocks, { base_block_x, base_block_y, z } )
 
                         turtle.select_item( b.name )
 
@@ -795,18 +830,7 @@ function craft ( args )
                         rdaneel:turtleGoForward( 2, true )
                         rdaneel:turtleTurnRight( 2 )
 
-                        --- Boilerplate Code
-                        local destroyed, destroyed_block = turtle.inspectDown()
-                        rdaneel:turtleGoDown( 1, true )
-                        turtle.place()
-
-                        rdaneel:turtleGoUp( 1, true )
-                        if destroyed then
-                            if turtle.select_item( nameid_lookup( destroyed_block.name ) ) then
-                                turtle.placeDown()
-                            end
-                        end
-                        ---
+                        BOILERPLATE()
 
                         rdaneel:turtleGoForward( 1, true )
                         rdaneel:turtleTurnLeft( 1 )
@@ -815,44 +839,31 @@ function craft ( args )
                         logfh.writeLine( table.dump( base_block ) )
                         logfh.writeLine(
                             string.format( "[%d %d %d] BID=%s BFAC=%s BDIR=%s CUR_DIR=%s\n"
-                                           .. "[%d %d] BASE_ID=%s\n"
-                                           .. "\n---\n",
+                                               .. "[%d %d] BASE_ID=%s\n"
+                                               .. "\n---\n",
                                            x, y, z, b.name, bfac, bdir, d,
                                            base_block_x, base_block_y, base_block.name ) );
                         logfh.flush()
+                        return true
+                    end
 
-                    elseif is_attachable
-                        and ( ( d == 'fd' and bdir == 'rt' )
-                                or ( d == 'bk' and bdir == 'lt' )
-                                or ( d == 'rt' and bdir == 'bk' )
-                                or ( d == 'lt' and bdir == 'fd' ) )
-                    then
-                        place_f = function ()
-                            rdaneel:turtleTurnRight( 1 )
-                            rdaneel:turtleGoForward( 1, true )
-                            rdaneel:turtleTurnRight( 2 )
+                elseif is_attachable and t == 4 then
+                    place_f = function ()
+                        rdaneel:turtleTurnRight( 1 )
+                        rdaneel:turtleGoForward( 1, true )
+                        rdaneel:turtleTurnRight( 2 )
 
-                            --- Boilerplate Code
-                            local destroyed, destroyed_block = turtle.inspectDown()
-                            rdaneel:turtleGoDown( 1, true )
-                            turtle.place()
+                        BOILERPLATE()
 
-                            rdaneel:turtleGoUp( 1, true )
-                            if destroyed then
-                                if turtle.select_item( nameid_lookup( destroyed_block.name ) ) then
-                                    turtle.placeDown()
-                                end
-                            end
-                            ---
+                        rdaneel:turtleGoForward( 1, true )
+                        rdaneel:turtleTurnRight( 1 )
 
-                            rdaneel:turtleGoForward( 1, true )
-                            rdaneel:turtleTurnRight( 1 )
-                        end
+                        return true
                     end
                 end
-                if turtle.select_item( b.name ) then
-                    place_f()
-                end
+            end
+            if turtle.select_item( b.name ) then
+                place_f()
             end
         end
     }
