@@ -690,7 +690,7 @@ function craft ( args )
                 return
             end
 
-            local place_f = function () 
+            local place_f = function () -- Vanilla placing function
                 return turtle.select_and_place { name = b.name, down = true, destroy = true, }
             end
 
@@ -701,23 +701,14 @@ function craft ( args )
                 local is_attachable = table.shallow_exists( G_ATTACHABLE_BLOCKS, b.name )
                 local t = type_of_intersection { td = d, bd = bdir }
 
-                print( "T: " .. tostring( t ) )
-
                 if t == 1 then
                     place_f = function ()
-                        rdaneel:turtleGoForward( 1, true )
-                        rdaneel:turtleTurnRight( 2 )
-                        rdaneel:turtleGoDown( 1, true )
-
+                        rdaneel:turtleGoForward( 1, true ); rdaneel:turtleTurnRight( 2 ); rdaneel:turtleGoDown( 1, true )
                         local success, err_msg = turtle.select_and_place { name = b.name, destroy = true }
                         if not success then
                             return nil, err_msg
                         end
-
-                        rdaneel:turtleGoUp( 1, true )
-                        rdaneel:turtleGoForward( 1, true )
-                        rdaneel:turtleTurnRight( 2 )
-
+                        rdaneel:turtleGoUp( 1, true ); rdaneel:turtleGoForward( 1, true ); rdaneel:turtleTurnRight( 2 )
                         return true
                     end
 
@@ -752,10 +743,7 @@ function craft ( args )
 
                         -- bookkeeping base block
                         table.insert( preinstalled_blocks, { base_block_x, base_block_y, z } )
-
-                        rdaneel:turtleTurnRight( 2 )
-                        rdaneel:turtleGoForward( 2, true )
-                        rdaneel:turtleTurnRight( 2 )
+                        rdaneel:turtleTurnRight( 2 ); rdaneel:turtleGoForward( 2, true ); rdaneel:turtleTurnRight( 2 )
 
                         turtle.temporarily_godn(
                             function ()
@@ -773,9 +761,7 @@ function craft ( args )
 
                 elseif is_attachable and t == 4 then
                     place_f = function ()
-                        rdaneel:turtleTurnRight( 1 )
-                        rdaneel:turtleGoForward( 1, true )
-                        rdaneel:turtleTurnRight( 2 )
+                        rdaneel:turtleTurnRight( 1 ); rdaneel:turtleGoForward( 1, true ); rdaneel:turtleTurnRight( 2 )
 
                         turtle.temporarily_godn(
                             function ()
@@ -783,9 +769,7 @@ function craft ( args )
                             end
                         )
 
-                        rdaneel:turtleGoForward( 1, true )
-                        rdaneel:turtleTurnRight( 1 )
-
+                        rdaneel:turtleGoForward( 1, true ); rdaneel:turtleTurnRight( 1 )
                         return true
                     end
                 end
