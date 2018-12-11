@@ -561,13 +561,6 @@ end
 -- draft
 
 function draft ( args )
-    local logfh, logformat
-
-    if args.g then
-        logfh = fs.open( 'rdaneel.draft.log', 'w' )
-        logformat = "Round=%d; Dir=%s; nthStep=%d; [X=%d Y=%d Z=%d]; DONE=%s"
-    end
-
     local tree = {}
     local success, err = turtle.sweep_solid {
         length = args.l, width = args.w, height = args.h,
@@ -582,20 +575,6 @@ function draft ( args )
 
             local direction = idx2dir( ctx.direction )
 
-            -- Logging
-            if logfh then
-                local log = string.format(
-                    logformat, 
-                    ctx.round, direction, ctx.nthStep,
-                    ctx.x, ctx.y, ctx.z,
-                    ctx.done and 'true' or 'false' )
-
-                logfh.writeLine( log )
-
-                if exists then logfh.writeLine( details.name ) end
-                logfh.writeLine( '*' ); logfh.flush()
-            end
-            --
             local zTbl
             if not tree[ ctx.z ] then zTbl = {}; tree[ ctx.z ] = zTbl else zTbl = tree[ ctx.z ] end
 
@@ -614,27 +593,29 @@ function draft ( args )
     if err_msg ~= nil then
         error( err_msg )
     end
-
-    if logfh then
-        logfh.writeLine( table.dump( tree ) )
-        logfh.close()
-    end
 end
 
 -- craft
 
-function BOILERPLATE ()
-    local destroyed, destroyed_block = turtle.inspectDown()
+function turtle.temporarily_godn ( action_f )
+    assert( action_f and type( action_f ) == 'function',
+            'Bad argument: action_f must be a valid function' )
 
+    local destroyed, destroyed_block = turtle.inspectDown()
     rdaneel:turtleGoDown( 1, true )
-    turtle.place()
+
+    local success, err_msg = action_f()
     rdaneel:turtleGoUp( 1, true )
 
     if destroyed then
-        if turtle.select_item( nameid_lookup( destroyed_block.name ) ) then
-            turtle.placeDown()
-        end
+        return turtle.select_and_place {
+            name = nameid_lookup( destroyed_block.name ),
+            down = true,
+            destroy = true,
+        }
     end
+
+    return success, err_msg
 end
 
 function type_of_intersection ( dparams )
@@ -710,7 +691,7 @@ function craft ( args )
             end
 
             local place_f = function () 
-                return turtle.select_and_place { slot = s, down = true, destroy = true, }
+                return turtle.select_and_place { name = b.name, down = true, destroy = true, }
             end
 
             local bfac = b.state.facing
@@ -720,13 +701,18 @@ function craft ( args )
                 local is_attachable = table.shallow_exists( G_ATTACHABLE_BLOCKS, b.name )
                 local t = type_of_intersection { td = d, bd = bdir }
 
+                print( "T: " .. tostring( t ) )
+
                 if t == 1 then
                     place_f = function ()
                         rdaneel:turtleGoForward( 1, true )
                         rdaneel:turtleTurnRight( 2 )
                         rdaneel:turtleGoDown( 1, true )
 
-                        turtle.place()
+                        local success, err_msg = turtle.select_and_place { name = b.name, destroy = true }
+                        if not success then
+                            return nil, err_msg
+                        end
 
                         rdaneel:turtleGoUp( 1, true )
                         rdaneel:turtleGoForward( 1, true )
@@ -758,24 +744,24 @@ function craft ( args )
 
                         rdaneel:turtleGoForward( 1, true )
 
-                        local s = turtle.seek_item( base_block.name )
-                        assert( s, "Failed seeking " .. base_block.name )
-
-                        local success, err_msg = turtle.select_and_place { slot = s, down = true, destroy = true }
+                        local success, err_msg = turtle.select_and_place {
+                            name = base_block.name, down = true, destroy = true }
                         if not success then
-                            error( err_msg )
+                            return nil, err_msg
                         end
 
                         -- bookkeeping base block
                         table.insert( preinstalled_blocks, { base_block_x, base_block_y, z } )
 
-                        assert( turtle.select_item( b.name ), "Failed picking " .. b.name )
-
                         rdaneel:turtleTurnRight( 2 )
                         rdaneel:turtleGoForward( 2, true )
                         rdaneel:turtleTurnRight( 2 )
 
-                        BOILERPLATE()
+                        turtle.temporarily_godn(
+                            function ()
+                                return turtle.select_and_place { name = b.name, destroy = true }
+                            end
+                        )
 
                         rdaneel:turtleGoForward( 1, true )
                         if t == 3 then
@@ -791,7 +777,11 @@ function craft ( args )
                         rdaneel:turtleGoForward( 1, true )
                         rdaneel:turtleTurnRight( 2 )
 
-                        BOILERPLATE()
+                        turtle.temporarily_godn(
+                            function ()
+                                return turtle.select_and_place { name = b.name, destroy = true }
+                            end
+                        )
 
                         rdaneel:turtleGoForward( 1, true )
                         rdaneel:turtleTurnRight( 1 )
@@ -800,9 +790,7 @@ function craft ( args )
                     end
                 end
             end
-            if turtle.select_item( b.name ) then
-                assert( place_f() )
-            end
+            assert( place_f() )
         end
     }
 end
@@ -880,9 +868,30 @@ function turtle.select_item ( arg )
 end
 
 function turtle.select_and_place ( args )
+    assert( not ( args.slot and args.name ),
+            "Index of slot and ID name of block must not be specified simultaneously" )
+
+    local slot
+
+    if args.name then
+        slot = turtle.seek_item( args.name )
+        if not slot then
+            return nil, "Not found " .. args.name
+        end
+    else
+        slot = args.slot or turtle.getSelectedSlot()
+        if turtle.getItemCount( slot ) == 0 then
+            return false, 'Slot ' .. tostring( slot ) .. ' is empty or non-exist'
+        end
+    end
+
+    if not turtle.select( slot ) then
+        return false, 'Failed selecting specified slot ' .. tostring( slot )
+    end
+
     function _fvars ( up, down )
         -- UP and DOWN must not be specified simultaneously
-        assert( not( up and down ), 'Conflict placing direction' )
+        assert( not ( up and down ), 'Conflict placing direction' )
 
         if up then
             return turtle.detectUp, turtle.digUp, turtle.placeUp, turtle.inspectUp
@@ -894,17 +903,8 @@ function turtle.select_and_place ( args )
     end
 
     local detect_f, dig_f, place_f, inspect_f = _fvars( args.up, args.down )
-
-    local slot = args.slot or turtle.getSelectedSlot()
-    if turtle.getItemCount( slot ) == 0 then
-        return false, 'Slot ' .. tostring( slot ) .. ' is empty'
-    end
-
-    if not turtle.select( slot ) then
-        return false, 'Failed selecting specified slot ' .. tostring( slot )
-    end
-
     local destroy = args.destroy
+
     if detect_f() then
         if destroy then
             dig_f()
@@ -922,10 +922,10 @@ end
 
 function turtle.figure_facing ( keeping )
 
-    local compass_slot = turtle.select_item( G_COMPASS_BLOCKS )
+    local compass_slot = turtle.seek_item( G_COMPASS_BLOCKS )
     assert( compass_slot, "Failed obtaining a block used for figuring the facing out" )
 
-    local base_slot = turtle.select_item( G_COMPASS_BASE_BLOCKS )
+    local base_slot = turtle.seek_item( G_COMPASS_BASE_BLOCKS )
     assert( base_slot, "Failed obtaining a base block for the compass block" )
 
     rdaneel:turtleTurnRight( 2 )
