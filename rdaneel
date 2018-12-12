@@ -1,6 +1,6 @@
 ---*- mode: lua;-*-
 
-local rdaneel = {
+local r = {
     VERSION = '0.1',
     _constants = {},
     _pri = {
@@ -18,8 +18,8 @@ local rdaneel = {
     }
 }
 
-rdaneel._constants = { slotsNum = 16, }
-rdaneel._constants = rdaneel._pri.protect( rdaneel._constants )
+r._constants = { slotsNum = 16, }
+r._constants = r._pri.protect( r._constants )
 
 function table.shallow_find ( arr, pred )
     for _, v in ipairs( arr ) do
@@ -178,40 +178,55 @@ function bpload ( sfile )
     return tables[1]
 end
 
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+--  Replaces the movement related functions in the turtle API.
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
 function turtle.goup ( destroy )
-    if destroy and turtle.detectUp() then
-        turtle.digUp()
-    end
-    turtle.up()
+    local destroy = destroy == nil and true or destroy
+    if destroy and turtle.detectUp() then turtle.digUp() end turtle.up()
 end
 
-function turtle.godn ( destroy ) if destroy and turtle.detectDown() then turtle.digDown() end turtle.down() end
-function turtle.gofd ( destroy ) if destroy and turtle.detect() then turtle.dig() end turtle.forward() end
+function turtle.godn ( destroy )
+    local destroy = destroy == nil and true or destroy
+    if destroy and turtle.detectDown() then turtle.digDown() end turtle.down()
+end
+
+function turtle.gofd ( destroy )
+    local destroy = destroy == nil and true or destroy
+    if destroy and turtle.detect() then turtle.dig() end turtle.forward()
+end
 
 function turtle._repeat ( action, times )
-    assert( action and type( action ) == 'function', 'action function must be specified' )
+    if not ( action and type( action ) == 'function' ) then
+        error( 'Action function must be specified' )
+    end
     local n
     if times then n = times else n = 1 end
     for _ = 1, n do action() end
+    return turtle
 end
 
-function turtle.lt ( times ) turtle._repeat( turtle.turnLeft, times ) end
-function turtle.rt ( times ) turtle._repeat( turtle.turnRight, times ) end
+function turtle.lt ( times ) return turtle._repeat( turtle.turnLeft, times ) end
+function turtle.rt ( times ) return turtle._repeat( turtle.turnRight, times ) end
+function turtle.lf ( times, destroy ) return turtle._repeat( function () turtle.goup( destroy ) end, times ) end
+function turtle.dn ( times, destroy ) return turtle._repeat( function () turtle.godn( destroy ) end, times ) end
+function turtle.fd ( times, destroy ) return turtle._repeat( function () turtle.gofd( destroy ) end, times ) end
 
-function turtle.lf ( times, destroy ) turtle._repeat( function () turtle.goup( destroy ) end, times ) end
-function turtle.dn ( times, destroy ) turtle._repeat( function () turtle.godn( destroy ) end, times ) end
-function turtle.fd ( times, destroy ) turtle._repeat( function () turtle.gofd( destroy ) end, times ) end
+function turtle.go_back_origin ( x, y, di )
+    if di == 1 then turtle.rt( 2 ) end
+    if di == 2 then turtle.rt()    end
+    if di == 4 then turtle.lt()    end
 
-function turtle.go_back_origin ( x, y, direction )
-    if direction == 1 then turtle.rt( 2 ) end
-    if direction == 2 then turtle.rt()    end
-    if direction == 4 then turtle.lt()     end
-
-    turtle.fd( y + 1, true )
-    turtle.rt()
-    turtle.fd( x, true )
-    turtle.rt()
+    turtle.fd( y + 1 ).rt().fd( x ).rt()
 end
+
+turtle.go_back_origin( 0, 3, 1 )
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 local G_ATTACHABLE_BLOCKS = {
     'minecraft:redstone_torch',
@@ -311,7 +326,7 @@ function turtle.select_empty_slot()
     end
 
     -- loop through all slots
-    for slot = 1, rdaneel._constants.slotsNum do
+    for slot = 1, r._constants.slotsNum do
         if turtle.getItemSpace( slot ) == 64 then
             turtle.select( slot )
             return true
@@ -327,7 +342,7 @@ end
 function turtle.count_inventory ()
     local total = 0
 
-    for slot = 1, rdaneel._constants.slotsNum do
+    for slot = 1, r._constants.slotsNum do
         total = total + turtle.getItemCount( slot )
     end
 
@@ -751,7 +766,9 @@ function craft ( args )
 
                         -- bookkeeping base block
                         table.insert( preinstalled_blocks, { base_block_x, base_block_y, z } )
-                        turtle.rt( 2 ); turtle.fd( 2, true ); turtle.rt( 2 )
+                        turtle.rt( 2 )
+                        turtle.fd( 2, true )
+                        turtle.rt( 2 )
 
                         turtle.temporarily_godn(
                             function ()
@@ -835,7 +852,7 @@ function turtle.seek_item ( arg )
 
         -- check all inventory slots except for current slot
 
-        for slot = 1, rdaneel._constants.slotsNum do
+        for slot = 1, r._constants.slotsNum do
             if slot ~= curslot then
                 local item = turtle.getItemDetail( slot )
                 if item and item.name == name then
@@ -949,41 +966,39 @@ function turtle.rotate_facing ( fac, times )
     return idx2fac( i )
 end
 
-do
-    local cli_args = {...}
-    local verb = table.remove( cli_args, 1 )
+-- do
+--     local cli_args = {...}
+--     local verb = table.remove( cli_args, 1 )
 
-    if verb == 'draft' then
-        local opts = posix_getopt( cli_args, 'lwhog' ) -- TODO: To process -g flag
+--     if verb == 'draft' then
+--         local opts = posix_getopt( cli_args, 'lwhog' ) -- TODO: To process -g flag
 
-        assert( opts.h and opts.w and opts.h, "Length [-l], width [-w] and height [-h] must all be specified correctly" )
-        assert( opts.o and #opts.o > 0, "Output file [-o] must be specified correctly" )
+--         assert( opts.h and opts.w and opts.h, "Length [-l], width [-w] and height [-h] must all be specified correctly" )
+--         assert( opts.o and #opts.o > 0, "Output file [-o] must be specified correctly" )
 
-        local l, w, h = tonumber( opts.l ), tonumber( opts.w ), tonumber( opts.h )
-        local o = opts.o
+--         local l, w, h = tonumber( opts.l ), tonumber( opts.w ), tonumber( opts.h )
+--         local o = opts.o
 
-        assert( type( l ) == 'number' and type( w ) == 'number' and type( h ) == 'number',
-                "Length, width, and height must all be numbers" )
+--         assert( type( l ) == 'number' and type( w ) == 'number' and type( h ) == 'number',
+--                 "Length, width, and height must all be numbers" )
 
-        draft { l = l,
-                w = w,
-                h = h,
-                o = o,
-                g = true }
+--         draft { l = l,
+--                 w = w,
+--                 h = h,
+--                 o = o,
+--                 g = true }
 
-        -- turtle.sweep_flat( l, w )
+--     elseif verb == 'craft' then
+--         local opts = posix_getopt( cli_args, 'ig' ) -- TODO: To process -g flag
+--         assert( opts.i and #opts.i > 0, "Input file [-i] must be specified correctly" )
 
-    elseif verb == 'craft' then
-        local opts = posix_getopt( cli_args, 'ig' ) -- TODO: To process -g flag
-        assert( opts.i and #opts.i > 0, "Input file [-i] must be specified correctly" )
-
-        local i = opts.i
-        craft { i = i, g = true }
-    else
-        print( "Usages:\n"
-                   .. "\trdaneel draft -l4 -w3 -l3 -o output\n"
-                   .. "\trdaneel craft --i=input -g" )
-        return false
-    end
-    return true
-end
+--         local i = opts.i
+--         craft { i = i, g = true }
+--     else
+--         print( "Usages:\n"
+--                    .. "\trdaneel draft -l4 -w3 -l3 -o output\n"
+--                    .. "\trdaneel craft --i=input -g" )
+--         return false
+--     end
+--     return true
+-- end
