@@ -1,3 +1,5 @@
+--*- mode: lua;-*-
+
 local rdaneel = {
     VERSION = '0.1',
     _constants = {},
