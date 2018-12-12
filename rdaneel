@@ -176,32 +176,38 @@ function bpload ( sfile )
     return tables[1]
 end
 
-function turtle:goup ( destroy ) if self and turtle.detectUp() then turtle.digUp() end turtle.up() end
-function turtle:godn ( destroy ) if self and turtle.detectDown() then turtle.digDown() end turtle.down() end
-function turtle:gofd ( destroy ) if self and turtle.detect() then turtle.dig() end turtle.forward() end
+function turtle.goup ( destroy )
+    if destroy and turtle.detectUp() then
+        turtle.digUp()
+    end
+    turtle.up()
+end
 
-function rdaneel:_turtleRepeat ( action, times )
+function turtle.godn ( destroy ) if destroy and turtle.detectDown() then turtle.digDown() end turtle.down() end
+function turtle.gofd ( destroy ) if destroy and turtle.detect() then turtle.dig() end turtle.forward() end
+
+function turtle._repeat ( action, times )
     assert( action and type( action ) == 'function', 'action function must be specified' )
     local n
     if times then n = times else n = 1 end
     for _ = 1, n do action() end
 end
 
-function turtle.turtleTurnLeft ( times ) rdaneel:_turtleRepeat( turtle.turnLeft, times ) end
-function turtle.turtleTurnRight ( times ) rdaneel:_turtleRepeat( turtle.turnRight, times ) end
+function turtle.turtleTurnLeft ( times ) turtle._repeat( turtle.turnLeft, times ) end
+function turtle.turtleTurnRight ( times ) turtle._repeat( turtle.turnRight, times ) end
 
-function turtle.turtleGoUp ( times, destroy ) rdaneel:_turtleRepeat( function () turtle.goup( destroy ) end, times ) end
-function turtle.turtleGoDown ( times, destroy ) rdaneel:_turtleRepeat( function () turtle.godn( destroy ) end, times ) end
-function turtle.turtleGoForward ( times, destroy ) rdaneel:_turtleRepeat( function () turtle.gofd( destroy ) end, times ) end
+function rdaneel:turtleGoUp ( times, destroy ) turtle._repeat( function () turtle.goup( destroy ) end, times ) end
+function rdaneel:turtleGoDown ( times, destroy ) turtle._repeat( function () turtle.godn( destroy ) end, times ) end
+function rdaneel:turtleGoForward ( times, destroy ) turtle._repeat( function () turtle.gofd( destroy ) end, times ) end
 
 function turtle.go_back_origin ( x, y, direction )
     if direction == 1 then turtle.turtleTurnRight( 2 ) end
     if direction == 2 then turtle.turtleTurnRight()    end
     if direction == 4 then turtle.turtleTurnLeft()     end
 
-    turtle.turtleGoForward( y + 1, true )
+    rdaneel:turtleGoForward( y + 1, true )
     turtle.turtleTurnRight()
-    turtle.turtleGoForward( x, true )
+    rdaneel:turtleGoForward( x, true )
     turtle.turtleTurnRight()
 end
 
@@ -278,27 +284,11 @@ local function idx2fac ( index )
 end
 
 local NAMEID_VARIANTS = {
-    ['minecraft:redstone'] = {
-        'minecraft:redstone_wire'
-    },
-
-    ['minecraft:repeater'] = {
-        'minecraft:powered_repeater',
-        'minecraft:unpowered_repeater'
-    },
-
-    ['minecraft:comparator'] = {
-        'minecraft:powered_comparator',
-        'minecraft:unpowered_comparator'
-    },
-
-    ['minecraft:redstone_torch'] = {
-        'minecraft:unlit_redstone_torch'
-    },
-
-    ['minecraft:redstone_lamp'] = {
-        'minecraft:lit_redstone_lamp'
-    },
+    ['minecraft:redstone'] = { 'minecraft:redstone_wire' },
+    ['minecraft:repeater'] = { 'minecraft:powered_repeater', 'minecraft:unpowered_repeater' },
+    ['minecraft:comparator'] = { 'minecraft:powered_comparator', 'minecraft:unpowered_comparator' },
+    ['minecraft:redstone_torch'] = { 'minecraft:unlit_redstone_torch' },
+    ['minecraft:redstone_lamp'] = { 'minecraft:lit_redstone_lamp' },
 }
 
 local function nameid_lookup ( id )
@@ -488,7 +478,7 @@ function turtle.sweep_solid ( args )
     -- lift turtle one more block so as to let turtle apply
     -- callback to the block underneath it:
 
-    turtle.turtleGoUp( from + 1, true )
+    rdaneel:turtleGoUp( from + 1, true )
 
     for z = from, to, step do
         local success, err = turtle.sweep_flat(
@@ -618,10 +608,10 @@ function turtle.temporarily_godn ( action_f )
             'Bad argument: action_f must be a valid function' )
 
     local destroyed, destroyed_block = turtle.inspectDown()
-    turtle.turtleGoDown( 1, true )
+    rdaneel:turtleGoDown( 1, true )
 
     local success, err_msg = action_f()
-    turtle.turtleGoUp( 1, true )
+    rdaneel:turtleGoUp( 1, true )
 
     if destroyed then
         return turtle.select_and_place {
@@ -706,7 +696,7 @@ function craft ( args )
                 return
             end
 
-            local place_f = function () -- vanilla placing function
+            local place_f = function () -- Vanilla placing function
                 return turtle.select_and_place { name = b.name, down = true, destroy = true, }
             end
 
@@ -719,12 +709,12 @@ function craft ( args )
 
                 if t == 1 then
                     place_f = function ()
-                        turtle.turtleGoForward( 1, true ); turtle.turtleTurnRight( 2 ); turtle.turtleGoDown( 1, true )
+                        rdaneel:turtleGoForward( 1, true ); turtle.turtleTurnRight( 2 ); rdaneel:turtleGoDown( 1, true )
                         local success, err_msg = turtle.select_and_place { name = b.name, destroy = true }
                         if not success then
                             return nil, err_msg
                         end
-                        turtle.turtleGoUp( 1, true ); turtle.turtleGoForward( 1, true ); turtle.turtleTurnRight( 2 )
+                        rdaneel:turtleGoUp( 1, true ); rdaneel:turtleGoForward( 1, true ); turtle.turtleTurnRight( 2 )
                         return true
                     end
 
@@ -749,7 +739,7 @@ function craft ( args )
                             turtle.turtleTurnRight( 1 )
                         end
 
-                        turtle.turtleGoForward( 1, true )
+                        rdaneel:turtleGoForward( 1, true )
 
                         local success, err_msg = turtle.select_and_place {
                             name = base_block.name, down = true, destroy = true }
@@ -759,7 +749,7 @@ function craft ( args )
 
                         -- bookkeeping base block
                         table.insert( preinstalled_blocks, { base_block_x, base_block_y, z } )
-                        turtle.turtleTurnRight( 2 ); turtle.turtleGoForward( 2, true ); turtle.turtleTurnRight( 2 )
+                        turtle.turtleTurnRight( 2 ); rdaneel:turtleGoForward( 2, true ); turtle.turtleTurnRight( 2 )
 
                         turtle.temporarily_godn(
                             function ()
@@ -767,7 +757,7 @@ function craft ( args )
                             end
                         )
 
-                        turtle.turtleGoForward( 1, true )
+                        rdaneel:turtleGoForward( 1, true )
                         if t == 3 then
                             turtle.turtleTurnLeft( 1 )
                         end
@@ -777,7 +767,7 @@ function craft ( args )
 
                 elseif is_attachable and t == 4 then
                     place_f = function ()
-                        turtle.turtleTurnRight( 1 ); turtle.turtleGoForward( 1, true ); turtle.turtleTurnRight( 2 )
+                        turtle.turtleTurnRight( 1 ); rdaneel:turtleGoForward( 1, true ); turtle.turtleTurnRight( 2 )
 
                         turtle.temporarily_godn(
                             function ()
@@ -785,7 +775,7 @@ function craft ( args )
                             end
                         )
 
-                        turtle.turtleGoForward( 1, true ); turtle.turtleTurnRight( 1 )
+                        rdaneel:turtleGoForward( 1, true ); turtle.turtleTurnRight( 1 )
                         return true
                     end
                 end
@@ -929,7 +919,7 @@ function turtle.figure_facing ( keeping )
     assert( base_slot, "Failed obtaining a base block for the compass block" )
 
     turtle.turtleTurnRight( 2 )
-    turtle.turtleGoForward( 1, true )
+    rdaneel:turtleGoForward( 1, true )
 
     local success, err_msg = turtle.select_and_place { slot = base_slot, destroy = true }
     if not success then
@@ -943,7 +933,7 @@ function turtle.figure_facing ( keeping )
     assert( exists, 'Compass damaged' )
 
     if not keeping then
-        turtle.turtleGoForward( 1, true ); turtle.dig()
+        rdaneel:turtleGoForward( 1, true ); turtle.dig()
         turtle.back()
     end
     turtle.turtleTurnLeft( 2 )
