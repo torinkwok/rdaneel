@@ -189,7 +189,7 @@ function turtle._repeat ( action, times )
         error( 'Action function must be specified' )
     end
     local n
-    if times then n = times else n = 1 end
+    if times then n = times else n = 1 end -- einmal ist keinmal
     for _ = 1, n do action() end
     return turtle
 end
@@ -222,11 +222,11 @@ function turtle.fd ( times, destroy )
 end
 
 function turtle.gbo ( x, y, di )
-    if di == 1 then turtle.rt( 2 ) end
+    if di == 1 then turtle.rt(2) end
     if di == 2 then turtle.rt()    end
     if di == 4 then turtle.lt()    end
 
-    return turtle.fd( y + 1 ).rt().fd( x ).rt()
+    return turtle.fd( y + 1 ).rt().fd(x).rt()
 end
 
 --------------------------------------------------------------------------------
@@ -629,10 +629,10 @@ function turtle.temporarily_godn ( action_f )
             'Bad argument: action_f must be a valid function' )
 
     local destroyed, destroyed_block = turtle.inspectDown()
-    turtle.dn( 1 )
+    turtle.dn()
 
     local success, err_msg = action_f()
-    turtle.lf( 1 )
+    turtle.lf()
 
     if destroyed then
         return turtle.select_and_place {
@@ -730,12 +730,12 @@ function craft ( args )
 
                 if t == 1 then
                     place_f = function ()
-                        turtle.fd( 1 ); turtle.rt( 2 ); turtle.dn( 1 )
+                        turtle.fd().rt(2).dn()
                         local success, err_msg = turtle.select_and_place { name = b.name, destroy = true }
                         if not success then
                             return nil, err_msg
                         end
-                        turtle.lf( 1 ); turtle.fd( 1 ); turtle.rt( 2 )
+                        turtle.lf().fd().rt(2)
                         return true
                     end
 
@@ -757,10 +757,10 @@ function craft ( args )
                         local base_block = bptbl[z][res.round][res.direction][res.nth_step].block
 
                         if t == 3 then
-                            turtle.rt( 1 )
+                            turtle.rt()
                         end
 
-                        turtle.fd( 1 )
+                        turtle.fd()
 
                         local success, err_msg = turtle.select_and_place {
                             name = base_block.name, down = true, destroy = true }
@@ -770,19 +770,12 @@ function craft ( args )
 
                         -- bookkeeping base block
                         table.insert( preinstalled_blocks, { base_block_x, base_block_y, z } )
-                        turtle.rt( 2 )
-                        turtle.fd( 2 )
-                        turtle.rt( 2 )
-
+                        turtle.rt(2).fd(2).rt(2)
                         turtle.temporarily_godn(
-                            function ()
-                                return turtle.select_and_place { name = b.name, destroy = true }
-                            end
-                        )
-
-                        turtle.fd( 1 )
+                            function () return turtle.select_and_place { name = b.name, destroy = true } end )
+                        turtle.fd()
                         if t == 3 then
-                            turtle.lt( 1 )
+                            turtle.lt()
                         end
 
                         return true
@@ -790,15 +783,10 @@ function craft ( args )
 
                 elseif is_attachable and t == 4 then
                     place_f = function ()
-                        turtle.rt( 1 ); turtle.fd( 1 ); turtle.rt( 2 )
-
+                        turtle.rt().fd().rt(2)
                         turtle.temporarily_godn(
-                            function ()
-                                return turtle.select_and_place { name = b.name, destroy = true }
-                            end
-                        )
-
-                        turtle.fd( 1 ); turtle.rt( 1 )
+                            function () return turtle.select_and_place { name = b.name, destroy = true } end )
+                        turtle.fd().rt()
                         return true
                     end
                 end
@@ -941,8 +929,7 @@ function turtle.figure_facing ( keeping )
     local base_slot = turtle.seek_item( G_COMPASS_BASE_BLOCKS )
     assert( base_slot, "Failed obtaining a base block for the compass block" )
 
-    turtle.rt( 2 )
-    turtle.fd( 1 )
+    turtle.rt(2).fd()
 
     local success, err_msg = turtle.select_and_place { slot = base_slot, destroy = true }
     if not success then
@@ -956,10 +943,10 @@ function turtle.figure_facing ( keeping )
     assert( exists, 'Compass damaged' )
 
     if not keeping then
-        turtle.fd( 1 ); turtle.dig()
+        turtle.fd().dig()
         turtle.back()
     end
-    turtle.lt( 2 )
+    turtle.lt(2)
 
     return compass_details.state.facing
 end
