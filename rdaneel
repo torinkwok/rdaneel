@@ -184,21 +184,6 @@ end
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-function turtle.goup ( destroy )
-    local destroy = destroy == nil and true or destroy
-    if destroy and turtle.detectUp() then turtle.digUp() end turtle.up()
-end
-
-function turtle.godn ( destroy )
-    local destroy = destroy == nil and true or destroy
-    if destroy and turtle.detectDown() then turtle.digDown() end turtle.down()
-end
-
-function turtle.gofd ( destroy )
-    local destroy = destroy == nil and true or destroy
-    if destroy and turtle.detect() then turtle.dig() end turtle.forward()
-end
-
 function turtle._repeat ( action, times )
     if not ( action and type( action ) == 'function' ) then
         error( 'Action function must be specified' )
@@ -211,19 +196,38 @@ end
 
 function turtle.lt ( times ) return turtle._repeat( turtle.turnLeft, times ) end
 function turtle.rt ( times ) return turtle._repeat( turtle.turnRight, times ) end
-function turtle.lf ( times, destroy ) return turtle._repeat( function () turtle.goup( destroy ) end, times ) end
-function turtle.dn ( times, destroy ) return turtle._repeat( function () turtle.godn( destroy ) end, times ) end
-function turtle.fd ( times, destroy ) return turtle._repeat( function () turtle.gofd( destroy ) end, times ) end
 
-function turtle.go_back_origin ( x, y, di )
+function turtle.lf ( times, destroy )
+    function __up ( destroy )
+        local destroy = destroy == nil and true or destroy
+        if destroy and turtle.detectUp() then turtle.digUp() end turtle.up()
+    end    
+    return turtle._repeat( function () __up( destroy ) end, times )
+end
+
+function turtle.dn ( times, destroy )
+    function __dn ( destroy )
+        local destroy = destroy == nil and true or destroy
+        if destroy and turtle.detectDown() then turtle.digDown() end turtle.down()
+    end
+    return turtle._repeat( function () __dn( destroy ) end, times )
+end
+
+function turtle.fd ( times, destroy )
+    function __fd ( destroy )
+        local destroy = destroy == nil and true or destroy
+        if destroy and turtle.detect() then turtle.dig() end turtle.forward()
+    end
+    return turtle._repeat( function () __fd( destroy ) end, times )
+end
+
+function turtle.gbo ( x, y, di )
     if di == 1 then turtle.rt( 2 ) end
     if di == 2 then turtle.rt()    end
     if di == 4 then turtle.lt()    end
 
-    turtle.fd( y + 1 ).rt().fd( x ).rt()
+    return turtle.fd( y + 1 ).rt().fd( x ).rt()
 end
-
--- turtle.go_back_origin( 0, 3, 1 )
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -451,7 +455,7 @@ function turtle.sweep_flat ( length, width, sweepCallback )
                 done = true
                 break
             else
-                for n = 1, nsteps do turtle.gofd( true )
+                for n = 1, nsteps do turtle.fd()
                     if sweepCallback then
                         if direction == 1 then
                             y = y + 1
@@ -507,15 +511,15 @@ function turtle.sweep_solid ( args )
                     f( ctx )
                 end
                 if ctx.done then
-                    turtle.go_back_origin( ctx.x, ctx.y, ctx.direction )
+                    turtle.gbo( ctx.x, ctx.y, ctx.direction )
                 end
             end )
 
         if success then
             if reversed then
-                turtle.godn( true )
+                turtle.dn()
             else
-                turtle.goup( true )
+                turtle.lf()
             end
         else
             return success, err
