@@ -756,10 +756,7 @@ function craft ( args )
                         local res = coordinate_calculus( l, w, base_block_x, base_block_y )
                         local base_block = bptbl[z][res.round][res.direction][res.nth_step].block
 
-                        if t == 3 then
-                            turtle.rt()
-                        end
-
+                        if t == 3 then turtle.rt() end
                         turtle.fd()
 
                         local success, err_msg = turtle.select_and_place {
@@ -771,12 +768,10 @@ function craft ( args )
                         -- bookkeeping base block
                         table.insert( preinstalled_blocks, { base_block_x, base_block_y, z } )
                         turtle.rt(2).fd(2).rt(2)
-                        turtle.temporarily_godn(
-                            function () return turtle.select_and_place { name = b.name, destroy = true } end )
+                        turtle.temporarily_godn( function () return turtle.select_and_place { name = b.name, destroy = true } end )
+
                         turtle.fd()
-                        if t == 3 then
-                            turtle.lt()
-                        end
+                        if t == 3 then turtle.lt() end
 
                         return true
                     end
@@ -784,8 +779,7 @@ function craft ( args )
                 elseif is_attachable and t == 4 then
                     place_f = function ()
                         turtle.rt().fd().rt(2)
-                        turtle.temporarily_godn(
-                            function () return turtle.select_and_place { name = b.name, destroy = true } end )
+                        turtle.temporarily_godn( function () return turtle.select_and_place { name = b.name, destroy = true } end )
                         turtle.fd().rt()
                         return true
                     end
