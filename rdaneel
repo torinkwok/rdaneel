@@ -223,7 +223,7 @@ function turtle.go_back_origin ( x, y, di )
     turtle.fd( y + 1 ).rt().fd( x ).rt()
 end
 
-turtle.go_back_origin( 0, 3, 1 )
+-- turtle.go_back_origin( 0, 3, 1 )
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -495,7 +495,7 @@ function turtle.sweep_solid ( args )
     -- lift turtle one more block so as to let turtle apply
     -- callback to the block underneath it:
 
-    turtle.lf( from + 1, true )
+    turtle.lf( from + 1 )
 
     for z = from, to, step do
         local success, err = turtle.sweep_flat(
@@ -625,10 +625,10 @@ function turtle.temporarily_godn ( action_f )
             'Bad argument: action_f must be a valid function' )
 
     local destroyed, destroyed_block = turtle.inspectDown()
-    turtle.dn( 1, true )
+    turtle.dn( 1 )
 
     local success, err_msg = action_f()
-    turtle.lf( 1, true )
+    turtle.lf( 1 )
 
     if destroyed then
         return turtle.select_and_place {
@@ -726,12 +726,12 @@ function craft ( args )
 
                 if t == 1 then
                     place_f = function ()
-                        turtle.fd( 1, true ); turtle.rt( 2 ); turtle.dn( 1, true )
+                        turtle.fd( 1 ); turtle.rt( 2 ); turtle.dn( 1 )
                         local success, err_msg = turtle.select_and_place { name = b.name, destroy = true }
                         if not success then
                             return nil, err_msg
                         end
-                        turtle.lf( 1, true ); turtle.fd( 1, true ); turtle.rt( 2 )
+                        turtle.lf( 1 ); turtle.fd( 1 ); turtle.rt( 2 )
                         return true
                     end
 
@@ -756,7 +756,7 @@ function craft ( args )
                             turtle.rt( 1 )
                         end
 
-                        turtle.fd( 1, true )
+                        turtle.fd( 1 )
 
                         local success, err_msg = turtle.select_and_place {
                             name = base_block.name, down = true, destroy = true }
@@ -767,7 +767,7 @@ function craft ( args )
                         -- bookkeeping base block
                         table.insert( preinstalled_blocks, { base_block_x, base_block_y, z } )
                         turtle.rt( 2 )
-                        turtle.fd( 2, true )
+                        turtle.fd( 2 )
                         turtle.rt( 2 )
 
                         turtle.temporarily_godn(
@@ -776,7 +776,7 @@ function craft ( args )
                             end
                         )
 
-                        turtle.fd( 1, true )
+                        turtle.fd( 1 )
                         if t == 3 then
                             turtle.lt( 1 )
                         end
@@ -786,7 +786,7 @@ function craft ( args )
 
                 elseif is_attachable and t == 4 then
                     place_f = function ()
-                        turtle.rt( 1 ); turtle.fd( 1, true ); turtle.rt( 2 )
+                        turtle.rt( 1 ); turtle.fd( 1 ); turtle.rt( 2 )
 
                         turtle.temporarily_godn(
                             function ()
@@ -794,7 +794,7 @@ function craft ( args )
                             end
                         )
 
-                        turtle.fd( 1, true ); turtle.rt( 1 )
+                        turtle.fd( 1 ); turtle.rt( 1 )
                         return true
                     end
                 end
@@ -938,7 +938,7 @@ function turtle.figure_facing ( keeping )
     assert( base_slot, "Failed obtaining a base block for the compass block" )
 
     turtle.rt( 2 )
-    turtle.fd( 1, true )
+    turtle.fd( 1 )
 
     local success, err_msg = turtle.select_and_place { slot = base_slot, destroy = true }
     if not success then
@@ -952,7 +952,7 @@ function turtle.figure_facing ( keeping )
     assert( exists, 'Compass damaged' )
 
     if not keeping then
-        turtle.fd( 1, true ); turtle.dig()
+        turtle.fd( 1 ); turtle.dig()
         turtle.back()
     end
     turtle.lt( 2 )
@@ -966,39 +966,39 @@ function turtle.rotate_facing ( fac, times )
     return idx2fac( i )
 end
 
--- do
---     local cli_args = {...}
---     local verb = table.remove( cli_args, 1 )
+do
+    local cli_args = {...}
+    local verb = table.remove( cli_args, 1 )
 
---     if verb == 'draft' then
---         local opts = posix_getopt( cli_args, 'lwhog' ) -- TODO: To process -g flag
+    if verb == 'draft' then
+        local opts = posix_getopt( cli_args, 'lwhog' ) -- TODO: To process -g flag
 
---         assert( opts.h and opts.w and opts.h, "Length [-l], width [-w] and height [-h] must all be specified correctly" )
---         assert( opts.o and #opts.o > 0, "Output file [-o] must be specified correctly" )
+        assert( opts.h and opts.w and opts.h, "Length [-l], width [-w] and height [-h] must all be specified correctly" )
+        assert( opts.o and #opts.o > 0, "Output file [-o] must be specified correctly" )
 
---         local l, w, h = tonumber( opts.l ), tonumber( opts.w ), tonumber( opts.h )
---         local o = opts.o
+        local l, w, h = tonumber( opts.l ), tonumber( opts.w ), tonumber( opts.h )
+        local o = opts.o
 
---         assert( type( l ) == 'number' and type( w ) == 'number' and type( h ) == 'number',
---                 "Length, width, and height must all be numbers" )
+        assert( type( l ) == 'number' and type( w ) == 'number' and type( h ) == 'number',
+                "Length, width, and height must all be numbers" )
 
---         draft { l = l,
---                 w = w,
---                 h = h,
---                 o = o,
---                 g = true }
+        draft { l = l,
+                w = w,
+                h = h,
+                o = o,
+                g = true }
 
---     elseif verb == 'craft' then
---         local opts = posix_getopt( cli_args, 'ig' ) -- TODO: To process -g flag
---         assert( opts.i and #opts.i > 0, "Input file [-i] must be specified correctly" )
+    elseif verb == 'craft' then
+        local opts = posix_getopt( cli_args, 'ig' ) -- TODO: To process -g flag
+        assert( opts.i and #opts.i > 0, "Input file [-i] must be specified correctly" )
 
---         local i = opts.i
---         craft { i = i, g = true }
---     else
---         print( "Usages:\n"
---                    .. "\trdaneel draft -l4 -w3 -l3 -o output\n"
---                    .. "\trdaneel craft --i=input -g" )
---         return false
---     end
---     return true
--- end
+        local i = opts.i
+        craft { i = i, g = true }
+    else
+        print( "Usages:\n"
+                   .. "\trdaneel draft -l4 -w3 -l3 -o output\n"
+                   .. "\trdaneel craft --i=input -g" )
+        return false
+    end
+    return true
+end
