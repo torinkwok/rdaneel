@@ -238,72 +238,6 @@ local G_ATTACHABLE_BLOCKS = {
     'minecraft:lever'
 }
 
-local G_DIRECTIONS = { 'fd', 'rt', 'bk', 'lt' }
-
-local function dir2idx ( direction )
-    local idx
-    if direction and type( direction ) == 'string' then
-        if direction == 'fd' then
-            idx = 1
-        elseif direction == 'rt' then
-            idx = 2
-        elseif direction == 'bk' then
-            idx = 3
-        elseif direction == 'lt' then
-            idx = 4
-        end
-    end
-    return idx
-end
-
-local function idx2dir ( index )
-    local dir
-    if index and type( index ) == 'number' then
-        if index == 1 then
-            dir = 'fd'
-        elseif index == 2 then
-            dir = 'rt'
-        elseif index == 3 then
-            dir = 'bk'
-        elseif index == 4 then
-            dir = 'lt'
-        end
-    end
-    return dir
-end
-
-local function fac2idx ( facing )
-    local idx
-    if facing and type( facing ) == 'string' then
-        if facing == 'north' then
-            idx = 1
-        elseif facing == 'east' then
-            idx = 2
-        elseif facing == 'south' then
-            idx = 3
-        elseif facing == 'west' then
-            idx = 4
-        end
-    end
-    return idx
-end
-
-local function idx2fac ( index )
-    local fac
-    if index and type( index ) == 'number' then
-        if index == 1 then
-            fac = 'north'
-        elseif index == 2 then
-            fac = 'east'
-        elseif index == 3 then
-            fac = 'south'
-        elseif index == 4 then
-            fac = 'west'
-        end
-    end
-    return fac
-end
-
 local NAMEID_VARIANTS = {
     ['minecraft:redstone'] = { 'minecraft:redstone_wire' },
     ['minecraft:repeater'] = { 'minecraft:powered_repeater', 'minecraft:unpowered_repeater' },
@@ -311,6 +245,37 @@ local NAMEID_VARIANTS = {
     ['minecraft:redstone_torch'] = { 'minecraft:unlit_redstone_torch' },
     ['minecraft:redstone_lamp'] = { 'minecraft:lit_redstone_lamp' },
 }
+
+local G_DIRECTIONS = { 'fd', 'rt', 'bk', 'lt' }
+local G_FACINGS = { 'north', 'east', 'south', 'west' }
+
+local function dir2idx ( d )
+    if table.shallow_exists( G_DIRECTIONS, d ) then
+        for i, v in ipairs( G_DIRECTIONS ) do
+            if v == d then return i end
+        end
+    end
+    return nil
+end
+
+local function idx2dir ( di )
+    if di >= 1 and di <= 4 then return G_DIRECTIONS[di] end
+    return nil
+end
+
+local function fac2idx ( f )
+    if table.shallow_exists( G_FACINGS, f ) then
+        for i, v in ipairs( G_FACINGS ) do
+            if v == f then return i end
+        end
+    end
+    return nil
+end
+
+local function idx2fac ( fi )
+    if fi >= 1 and fi <= 4 then return G_FACINGS[fi] end
+    return nil
+end
 
 local function nameid_lookup ( id )
     for std, variants in pairs( NAMEID_VARIANTS ) do
@@ -884,7 +849,7 @@ function turtle.select_and_place ( args )
         return false, 'Failed selecting specified slot ' .. tostring( slot )
     end
 
-    function _fvars ( up, down )
+    function __fvars ( up, down )
         -- UP and DOWN must not be specified simultaneously
         assert( not ( up and down ), 'Conflict placing direction' )
 
@@ -897,7 +862,7 @@ function turtle.select_and_place ( args )
         end
     end
 
-    local detect_f, dig_f, place_f, inspect_f = _fvars( args.up, args.down )
+    local detect_f, dig_f, place_f, inspect_f = __fvars( args.up, args.down )
     local destroy = args.destroy
 
     if detect_f() then
