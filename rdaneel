@@ -29,10 +29,7 @@ function table.shallow_find ( arr, pred )
 end
 
 function table.shallow_exists( arr, elm )
-    return table.shallow_find(
-        arr,
-        function ( v ) return v == elm end
-    ) and true or false
+    return table.shallow_find( arr, function ( v ) return v == elm end )
 end
 
 function table.shallow_len ( tbl )
@@ -330,7 +327,6 @@ function coordinate_calculus ( flat_len, flat_wid, x, y )
 
     local r = math.min( x >= v and v - ( x - ( maxx - v ) ) or x,
                         y >= h and h - ( y - ( maxy - h ) ) or y )
-
     local d, n
     local delta = r
     local tp = 1 -- number of block occupied by a turning point
@@ -358,7 +354,7 @@ function turtle.sweep_flat ( length, width, sweepCallback )
 
     local minimum = length * width
     if turtle.getFuelLevel() < minimum then
-        return false, 'HAVE NO ENOUGH FUEL'
+        return nil, 'HAVE NO ENOUGH FUEL'
     end
 
     -- Yes, we count the number of rounds from zero
@@ -415,7 +411,11 @@ function turtle.sweep_flat ( length, width, sweepCallback )
             if nsteps == 0 then
                 if sweepCallback then
                     ctx_tbl.x = x; ctx_tbl.y = y; ctx_tbl.nthStep = 0; ctx_tbl.done = true
-                    sweepCallback( ctx_tbl )
+
+                    local success, err = sweepCallback( ctx_tbl )
+                    if not success then
+                        return nil, err
+                    end
                 end
                 done = true
                 break
@@ -432,7 +432,11 @@ function turtle.sweep_flat ( length, width, sweepCallback )
                             x = x - 1
                         end
                         ctx_tbl.x = x; ctx_tbl.y = y; ctx_tbl.nthStep = n
-                        sweepCallback( ctx_tbl )
+
+                        local success, err = sweepCallback( ctx_tbl )
+                        if not success then
+                            return nil, err
+                        end
                     end
                 end
                 turtle.turnRight()
@@ -473,13 +477,17 @@ function turtle.sweep_solid ( args )
                 ctx.z = z;
                 if f then
                     assert( type( f ) == 'function', 'Callback is required to be a function' ) 
-                    f( ctx )
+                    local success, err = f( ctx )
+                    if not success then
+                        return nil, err
+                    end
                 end
                 if ctx.done then
                     turtle.gbo( ctx.x, ctx.y, ctx.direction )
                 end
-            end )
-
+                return true
+            end
+        )
         if success then
             if reversed then
                 turtle.dn()
@@ -487,7 +495,7 @@ function turtle.sweep_solid ( args )
                 turtle.lf()
             end
         else
-            return success, err
+            return nil, err
         end
 
     end
@@ -576,15 +584,19 @@ function draft ( args )
             local dirTbl
             if not roundTbl[ direction ] then dirTbl = {}; roundTbl[ direction ] = dirTbl else dirTbl = roundTbl[ direction ] end        
 
-            table.insert( dirTbl, #dirTbl + 1,
+            table.insert( dirTbl,
+                          #dirTbl + 1,
                           { x = ctx.x, y = ctx.y, block = details, } )
+            return true
         end
-    }; assert( success, err )
+    }; if not success then return nil, err end
 
     local err_msg = bpsave( tree, args.o )
     if err_msg ~= nil then
-        error( err_msg )
+        return nil, err_msg
     end
+
+    return true
 end
 
 -- craft
@@ -640,7 +652,7 @@ end
 
 function craft ( args )
     local bptbl, err_msg = bpload( args.i )
-    assert( bptbl, err_msg )
+    if not bptbl then return nil, err_msg end
 
     local rt_steps, fd_steps = bptbl[0][0].rt, bptbl[0][0].fd
 
@@ -648,28 +660,29 @@ function craft ( args )
     local w = fd_steps[ #fd_steps ].y + 1
     local h = #bptbl + 1
 
-    local turtel_facing = turtle.figure_facing()
+    local turtle_facing, err = turtle.figure_facing()
+    if not turtle_facing then return nil, err end
 
     local dir2fac_lookup = {}
-    for i = 1, 4 do dir2fac_lookup[ idx2dir( i ) ] = turtle.rotate_facing( turtel_facing, i - 1 ) end
+    for i = 1, 4 do dir2fac_lookup[ idx2dir( i ) ] = turtle.rotate_facing( turtle_facing, i - 1 ) end
 
     local fac2dir_lookup = {}
     for k, v in pairs( dir2fac_lookup ) do fac2dir_lookup[v] = k end
 
     local preinstalled_blocks = {}
 
-    turtle.sweep_solid {
+    return turtle.sweep_solid {
         length = l, width = w, height = h,
         reversed = false,
         sweepCallback = function ( ctx )
-            if ctx.nthStep == 0 then return end
+            if ctx.nthStep == 0 then return true end
             local x, y, z = ctx.x, ctx.y, ctx.z
 
             if table.shallow_find(
                 preinstalled_blocks,
                 function ( v ) return v[1] == x and v[2] == y and v[3] == z end )
             then
-                return
+                return true
             end
 
             local r = ctx.round
@@ -679,10 +692,10 @@ function craft ( args )
 
             local b = bptbl[z][r][d][n].block
             if table.shallow_len( b ) == 0 then -- if the block is not empty
-                return
+                return true
             end
 
-            local place_f = function () -- Vanilla placing function
+            local place_f = function () -- vanilla placing function
                 return turtle.select_and_place { name = b.name, down = true, destroy = true, }
             end
 
@@ -696,9 +709,9 @@ function craft ( args )
                 if t == 1 then
                     place_f = function ()
                         turtle.fd().rt(2).dn()
-                        local success, err_msg = turtle.select_and_place { name = b.name, destroy = true }
+                        local success, err = turtle.select_and_place { name = b.name, destroy = true }
                         if not success then
-                            return nil, err_msg
+                            return nil, err
                         end
                         turtle.lf().fd().rt(2)
                         return true
@@ -724,10 +737,10 @@ function craft ( args )
                         if t == 3 then turtle.rt() end
                         turtle.fd()
 
-                        local success, err_msg = turtle.select_and_place {
+                        local success, err = turtle.select_and_place {
                             name = base_block.name, down = true, destroy = true }
                         if not success then
-                            return nil, err_msg
+                            return nil, err
                         end
 
                         -- bookkeeping base block
@@ -750,12 +763,12 @@ function craft ( args )
                     end
                 end
             end
-            assert( place_f() )
+            return place_f()
         end
     }
 end
 
-local G_COMPASS_BLOCKS = {
+local G_COMPASSLIKE_BLOCKS = {
     'minecraft:torch',
     'minecraft:redstone_torch',
     'minecraft:ladder',
@@ -841,12 +854,12 @@ function turtle.select_and_place ( args )
     else
         slot = args.slot or turtle.getSelectedSlot()
         if turtle.getItemCount( slot ) == 0 then
-            return false, 'Slot ' .. tostring( slot ) .. ' is empty or non-exist'
+            return nil, 'Slot ' .. tostring( slot ) .. ' is empty or non-exist'
         end
     end
 
     if not turtle.select( slot ) then
-        return false, 'Failed selecting specified slot ' .. tostring( slot )
+        return nil, 'Failed selecting specified slot ' .. tostring( slot )
     end
 
     function __fvars ( up, down )
@@ -870,7 +883,7 @@ function turtle.select_and_place ( args )
             dig_f()
         else
             local exists, details = inspect_f()
-            return false, 'Irrelevant block ' .. ( exists and details.name .. ' ' or '' ) .. 'stands in the way'
+            return nil, 'Irrelevant block ' .. ( exists and details.name .. ' ' or '' ) .. 'stands in the way'
         end
     end
 
@@ -882,24 +895,28 @@ end
 
 function turtle.figure_facing ( keeping )
 
-    local compass_slot = turtle.seek_item( G_COMPASS_BLOCKS )
-    assert( compass_slot, "Failed obtaining a block used for figuring the facing out" )
+    local compass_slot = turtle.seek_item( G_COMPASSLIKE_BLOCKS )
+    if not compass_slot then
+        return nil, "Failed obtaining a compass-like block used for figuring the facing out"
+    end
 
     local base_slot = turtle.seek_item( G_COMPASS_BASE_BLOCKS )
-    assert( base_slot, "Failed obtaining a base block for the compass block" )
+    if not base_slot then
+        return nil, "Failed obtaining a base block for the compass block"
+    end
 
     turtle.rt(2).fd()
 
-    local success, err_msg = turtle.select_and_place { slot = base_slot, destroy = true }
+    local success, err = turtle.select_and_place { slot = base_slot, destroy = true }
     if not success then
-        return nil, err_msg
+        return nil, err
     end
 
     turtle.back()
     turtle.select_and_place { slot = compass_slot, destroy = true }
 
     local exists, compass_details = turtle.inspect()
-    assert( exists, 'Compass damaged' )
+    if not exists then return nil, 'Compass damaged' end
 
     if not keeping then
         turtle.fd().dig()
@@ -932,18 +949,18 @@ do
         assert( type( l ) == 'number' and type( w ) == 'number' and type( h ) == 'number',
                 "Length, width, and height must all be numbers" )
 
-        draft { l = l,
-                w = w,
-                h = h,
-                o = o,
-                g = true }
+        assert( draft { l = l,
+                        w = w,
+                        h = h,
+                        o = o,
+                        g = true } )
 
     elseif verb == 'craft' then
         local opts = posix_getopt( cli_args, 'ig' ) -- TODO: To process -g flag
         assert( opts.i and #opts.i > 0, "Input file [-i] must be specified correctly" )
 
         local i = opts.i
-        craft { i = i, g = true }
+        assert( craft { i = i, g = true } )
     else
         print( "Usages:\n"
                    .. "\trdaneel draft -l4 -w3 -l3 -o output\n"
