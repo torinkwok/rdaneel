@@ -678,7 +678,7 @@ function craft ( args )
     local h = #tree + 1
 
     local tdraft_facing = tree.turtle_facing
-    if not turtle_facing then
+    if not tdraft_facing then
         return nil, "Failed to pick up the clue about where turtle faced towards while it was drafting. "
             .. "Considering upgrading rdaneel and redrafting your structures."
     end
