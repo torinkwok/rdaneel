@@ -733,12 +733,10 @@ function craft ( args )
             end
 
             local bfac = b.state.facing
-            local bdir
-            if bfac then
-                bdir = turtle.rotate_direction( fac2dir_lookup[ bfac ], roll )
-            end
 
-            if bfac and bdir and not ( bfac == 'up' or bfac == 'down' ) then
+            if bfac and not ( bfac == 'up' or bfac == 'down' ) then
+                local bdir = turtle.rotate_direction( fac2dir_lookup[ bfac ], roll )
+
                 local is_attachable = table.shallow_exists( G_ATTACHABLE_BLOCKS, b.name )
                 local t = type_of_intersection { td = d, bd = bdir }
 
