@@ -274,6 +274,18 @@ local function idx2fac ( fi )
     return nil
 end
 
+function turtle.rotate_facing ( fac, times )
+    local i = fac2idx( fac )
+    for _ = 1, times or 1 do i = i % 4 + 1 end
+    return idx2fac( i )
+end
+
+function turtle.rotate_direction ( dir, times )
+    local i = dir2idx( dir )
+    for _ = 1, times or 1 do i = i % 4 + 1 end
+    return idx2dir( i )
+end
+
 local function nameid_lookup ( id )
     for std, variants in pairs( NAMEID_VARIANTS ) do
         if table.shallow_exists( variants, id ) then
@@ -561,6 +573,10 @@ end
 -- draft
 
 function draft ( args )
+
+    local turtle_facing, err = turtle.figure_facing()
+    if not turtle_facing then return nil, err end
+
     local tree = {}
     local success, err = turtle.sweep_solid {
         length = args.l, width = args.w, height = args.h,
@@ -591,6 +607,7 @@ function draft ( args )
         end
     }; if not success then return nil, err end
 
+    tree[ 'turtle_facing' ] = turtle_facing
     local err_msg = bpsave( tree, args.o )
     if err_msg ~= nil then
         return nil, err_msg
@@ -651,17 +668,33 @@ function type_of_intersection ( dparams )
 end
 
 function craft ( args )
-    local bptbl, err_msg = bpload( args.i )
-    if not bptbl then return nil, err_msg end
+    local tree, err_msg = bpload( args.i )
+    if not tree then return nil, err_msg end
 
-    local rt_steps, fd_steps = bptbl[0][0].rt, bptbl[0][0].fd
+    local rt_steps, fd_steps = tree[0][0].rt, tree[0][0].fd
 
     local l = rt_steps[ #rt_steps ].x + 1
     local w = fd_steps[ #fd_steps ].y + 1
-    local h = #bptbl + 1
+    local h = #tree + 1
 
-    local turtle_facing, err = turtle.figure_facing()
+    local tdraft_facing = tree.turtle_facing
+    if not turtle_facing then
+        return nil, "Failed to pick up the clue about where turtle faced towards while it was drafting. "
+            .. "Considering upgrading rdaneel and redrafting your structures."
+    end
+
+    local turtle_facing, err = turtle.figure_facing();
     if not turtle_facing then return nil, err end
+
+    local roll = 0
+    if tdraft_facing ~= turtle_facing then
+        for t = 1, 3 do
+            if turtle.rotate_facing( tdraft_facing, t ) == turtle_facing then
+                roll = t
+                break
+            end
+        end
+    end
 
     local dir2fac_lookup = {}
     for i = 1, 4 do dir2fac_lookup[ idx2dir( i ) ] = turtle.rotate_facing( turtle_facing, i - 1 ) end
@@ -690,7 +723,7 @@ function craft ( args )
             local d = idx2dir( di )
             local n = ctx.nthStep
 
-            local b = bptbl[z][r][d][n].block
+            local b = tree[z][r][d][n].block
             if table.shallow_len( b ) == 0 then -- if the block is not empty
                 return true
             end
@@ -700,7 +733,10 @@ function craft ( args )
             end
 
             local bfac = b.state.facing
-            local bdir = fac2dir_lookup[ bfac ]
+            local bdir
+            if bfac then
+                bdir = turtle.rotate_direction( fac2dir_lookup[ bfac ], roll )
+            end
 
             if bfac and bdir and not ( bfac == 'up' or bfac == 'down' ) then
                 local is_attachable = table.shallow_exists( G_ATTACHABLE_BLOCKS, b.name )
@@ -732,7 +768,7 @@ function craft ( args )
                         end
 
                         local res = coordinate_calculus( l, w, base_block_x, base_block_y )
-                        local base_block = bptbl[z][res.round][res.direction][res.nth_step].block
+                        local base_block = tree[z][res.round][res.direction][res.nth_step].block
 
                         if t == 3 then turtle.rt() end
                         turtle.fd()
@@ -925,12 +961,6 @@ function turtle.figure_facing ( keeping )
     turtle.lt(2)
 
     return compass_details.state.facing
-end
-
-function turtle.rotate_facing ( fac, times )
-    local i = fac2idx( fac )
-    for _ = 1, times or 1 do i = i % 4 + 1 end
-    return idx2fac( i )
 end
 
 do
