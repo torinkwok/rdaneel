@@ -603,6 +603,12 @@ function draft ( args )
             table.insert( dirTbl,
                           #dirTbl + 1,
                           { x = ctx.x, y = ctx.y, block = details, } )
+
+            if ctx.z == 0 then
+                if turtle.detectDown() then
+                    turtle.digDown()
+                end
+            end
             return true
         end
     }; if not success then return nil, err end
