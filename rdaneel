@@ -730,7 +730,7 @@ function craft ( args )
             local n = ctx.nthStep
 
             local b = tree[z][r][d][n].block
-            if table.shallow_len( b ) == 0 then -- if the block is not empty
+            if table.shallow_len( b ) == 0 then -- if the block is empty
                 return true
             end
 
