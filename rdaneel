@@ -586,7 +586,7 @@ function draft ( args )
             if exists then
                 details.name = nameid_lookup( details.name )
             else
-                details = {}
+                return true
             end
 
             local direction = idx2dir( ctx.direction )
@@ -601,14 +601,8 @@ function draft ( args )
             if not roundTbl[ direction ] then dirTbl = {}; roundTbl[ direction ] = dirTbl else dirTbl = roundTbl[ direction ] end        
 
             table.insert( dirTbl,
-                          #dirTbl + 1,
+                          ctx.nthStep,
                           { x = ctx.x, y = ctx.y, block = details, } )
-
-            if ctx.z == 0 then
-                if turtle.detectDown() then
-                    turtle.digDown()
-                end
-            end
             return true
         end
     }; if not success then return nil, err end
@@ -679,9 +673,13 @@ function craft ( args )
 
     local rt_steps, fd_steps = tree[0][0].rt, tree[0][0].fd
 
-    local l = rt_steps[ #rt_steps ].x + 1
-    local w = fd_steps[ #fd_steps ].y + 1
-    local h = #tree + 1
+    local l = 4
+    local w = 6
+    local h = 3
+
+    -- local l = rt_steps[ #rt_steps ].x + 1
+    -- local w = fd_steps[ #fd_steps ].y + 1
+    -- local h = #tree + 1
 
     local tdraft_facing = tree.turtle_facing
     if not tdraft_facing then
@@ -729,8 +727,8 @@ function craft ( args )
             local d = idx2dir( di )
             local n = ctx.nthStep
 
-            local b = tree[z][r][d][n].block
-            if table.shallow_len( b ) == 0 then -- if the block is empty
+            local success, b = pcall( function() return tree[z][r][d][n].block end )
+            if not success then
                 return true
             end
 
@@ -1003,3 +1001,15 @@ do
     end
     return true
 end
+
+-- local logfh = fs.open( '4x6.log', 'w' )
+-- logfh.writeLine( table.dump( bpload( '4x6.rdbp' ) ) )
+-- logfh.close()
+
+-- logfh = fs.open( '4x6.bk.log', 'w' )
+-- logfh.writeLine( table.dump( bpload( '4x6.rdbp.bk' ) ) )
+-- logfh.close()
+
+-- logfh = fs.open( 'ex4x6.log', 'w' )
+-- logfh.writeLine( table.dump( bpload( 'ex4x6.rdbp' ) ) )
+-- logfh.close()
