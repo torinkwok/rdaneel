@@ -607,6 +607,18 @@ function draft ( args )
         end
     }; if not success then return nil, err end
 
+    -- destroy the lowest layer
+    turtle.sweep_flat(
+        args.l,
+        args.w,
+        function ( ctx )
+            if ctx.done then
+                turtle.gbo( ctx.x, ctx.y, ctx.direction )
+            end
+            return true
+        end
+    )
+
     tree[ 'turtle_facing' ] = turtle_facing
     local err_msg = bpsave( tree, args.o )
     if err_msg ~= nil then
@@ -1000,9 +1012,9 @@ do
         local i = opts.i
         assert( craft { i = i, g = true } )
     else
-        print( "Usages:\n"
-                   .. "\trdaneel draft -l4 -w3 -l3 -o output\n"
-                   .. "\trdaneel craft --i=input -g" )
+        io.write( "Usages:\n"
+                      .. "\trdaneel draft -l4 -w3 -l3 -o output\n"
+                      .. "\trdaneel craft --i=input -g" )
         return false
     end
     return true
