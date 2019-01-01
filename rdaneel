@@ -603,6 +603,11 @@ function draft ( args )
             table.insert( dirTbl,
                           ctx.nthStep,
                           { x = ctx.x, y = ctx.y, block = details, } )
+
+            logfh.writeLine( table.dump( details ) )
+            logfh.writeLine( '---' )
+            logfh.flush()
+
             return true
         end
     }; if not success then return nil, err end
@@ -620,6 +625,9 @@ function draft ( args )
     )
 
     tree[ 'turtle_facing' ] = turtle_facing
+    tree[ 'l' ] = args.l
+    tree[ 'w' ] = args.w
+
     local err_msg = bpsave( tree, args.o )
     if err_msg ~= nil then
         return nil, err_msg
@@ -679,24 +687,25 @@ function type_of_intersection ( dparams )
     end
 end
 
+function enumerate_blocks ( bptree, f )
+    for zi = 0, #tree do
+        for ri = 0, #tree[zi] do
+            for _, steps in pairs( tree[zi][ri] ) do
+                for _, s in pairs( steps ) do
+                    f( s )
+                end
+            end
+        end
+    end
+end
+
 function craft ( args )
     local tree, err_msg = bpload( args.i )
     if not tree then return nil, err_msg end
 
     local h = #tree + 1
-    local l = 0
-    local w = 0
-
-    for zi = 0, #tree do
-        for ri = 0, #tree[zi] do
-            for _, steps in pairs( tree[zi][ri] ) do
-                for _, s in pairs( steps ) do
-                    l = math.max( s.x + 1, l )
-                    w = math.max( s.y + 1, w )
-                end
-            end
-        end
-    end
+    local l = tree.l
+    local w = tree.w
 
     local tdraft_facing = tree.turtle_facing
     if not tdraft_facing then
