@@ -605,7 +605,9 @@ function draft ( args )
                           { x = ctx.x, y = ctx.y, block = details, } )
             return true
         end
-    }; if not success then return nil, err end
+    }
+
+    if not success then return nil, err end
 
     -- destroy the lowest layer
     turtle.sweep_flat(
