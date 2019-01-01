@@ -603,11 +603,6 @@ function draft ( args )
             table.insert( dirTbl,
                           ctx.nthStep,
                           { x = ctx.x, y = ctx.y, block = details, } )
-
-            logfh.writeLine( table.dump( details ) )
-            logfh.writeLine( '---' )
-            logfh.flush()
-
             return true
         end
     }; if not success then return nil, err end
